@@ -4,10 +4,28 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/micro-e2e"
+      "path": "./apps/api-gateway-e2e"
     },
     {
-      "path": "./apps/micro"
+      "path": "./apps/api-gateway"
+    },
+    {
+      "path": "./apps/user-service-e2e"
+    },
+    {
+      "path": "./apps/user-service"
+    },
+    {
+      "path": "./apps/auth-service-e2e"
+    },
+    {
+      "path": "./apps/auth-service"
+    },
+    {
+      "path": "./libs/shared/config"
+    },
+    {
+      "path": "./libs/dto"
     }
   ]
 }
