@@ -1,0 +1,26 @@
+{
+  "name": "@micro-nest/micro-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@micro-nest/micro"
+    ],
+    "targets": {
+      "e2e": {
+        "executor": "@nx/jest:jest",
+        "outputs": [
+          "{projectRoot}/test-output/jest/coverage"
+        ],
+        "options": {
+          "jestConfig": "apps/micro-e2e/jest.config.cts",
+          "passWithNoTests": true
+        },
+        "dependsOn": [
+          "@micro-nest/micro:build",
+          "@micro-nest/micro:serve"
+        ]
+      }
+    }
+  }
+}
