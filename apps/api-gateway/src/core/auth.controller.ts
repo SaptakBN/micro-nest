@@ -10,7 +10,7 @@ const config = getConfig('serviceUrl');
 export class AuthController {
   constructor(private readonly proxyService: ProxyService) {}
 
-  @Post('/api/auth/register')
+  @Post('/auth/register')
   handleRegister(
     @Body() body: RegisterDto,
     @Req() req: Request,
@@ -22,11 +22,11 @@ export class AuthController {
       res,
       next,
       config.AUTH_SERVICE as string,
-      '/api/auth',
+      '/api/register',
     );
   }
 
-  @Post('/api/auth/login')
+  @Post('/auth/login')
   handleLogin(
     @Body() body: LoginDto,
     @Req() req: Request,
@@ -38,7 +38,7 @@ export class AuthController {
       res,
       next,
       config.AUTH_SERVICE as string,
-      '/api/auth',
+      '/auth',
     );
   }
 }

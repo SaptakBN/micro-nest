@@ -7,8 +7,8 @@ import { ServerResponse, IncomingMessage } from 'http';
 export class ProxyService {
   private cache = new Map<string, RequestHandler>();
 
-  private getProxy(target: string, stripPath: string): RequestHandler {
-    const key = `${target}_${stripPath}`;
+  private getProxy(target: string, forwardPath: string): RequestHandler {
+    const key = `${target}_${forwardPath}`;
 
     if (this.cache.has(key)) {
       return this.cache.get(key) as RequestHandler;
@@ -17,15 +17,15 @@ export class ProxyService {
     const options: Options = {
       target,
       changeOrigin: true,
-      pathRewrite: {
-        [`^${stripPath}`]: '',
-      },
+      ignorePath: true,
       timeout: 3000,
       proxyTimeout: 3000,
 
       on: {
         proxyReq(proxyReq, req: IncomingMessage) {
           const expressReq = req as Request;
+
+          proxyReq.path = forwardPath;
 
           if (!expressReq.body) return;
           if (proxyReq.writableEnded) return;
