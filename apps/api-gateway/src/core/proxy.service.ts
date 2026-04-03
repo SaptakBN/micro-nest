@@ -65,9 +65,10 @@ export class ProxyService {
     target: string,
     stripPath: string,
   ) {
-    if (req.user) {
-      req.headers['x-user-id'] = req.user.userId;
-      req.headers['x-user-email'] = req.user.email;
+    const authUser = req.user as { userId: string; email: string } | undefined;
+    if (authUser) {
+      req.headers['x-user-id'] = authUser.userId;
+      req.headers['x-user-email'] = authUser.email;
     }
     const proxy = this.getProxy(target, stripPath);
     return proxy(req, res, next);
