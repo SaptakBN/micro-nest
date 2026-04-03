@@ -9,7 +9,7 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    const config = getConfig('db_config');
+    const config = getConfig('db');
     const adapter = new PrismaMariaDb(config.url, {
       onConnectionError(err) {
         console.error('Database connection error:', err);

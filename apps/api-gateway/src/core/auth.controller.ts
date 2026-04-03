@@ -38,7 +38,7 @@ export class AuthController {
       res,
       next,
       config.AUTH_SERVICE as string,
-      '/auth',
+      '/api/login',
     );
   }
 }
