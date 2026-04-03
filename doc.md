@@ -4,7 +4,7 @@
 
 MicroNest is a microservices-based application built using NestJS framework within an Nx monorepo. The project implements a basic authentication system with an API Gateway that proxies requests to individual services. The architecture follows microservices principles with separate services for authentication and user management, shared libraries for DTOs and configuration, and end-to-end testing.
 
-**Current Status**: The project is in early development stage. Basic scaffolding is complete with API Gateway proxying auth requests, auth service handling registration/login endpoints, and shared libraries for DTOs and configuration. Services are functional but lack full business logic implementation.
+**Current Status**: The project is actively in development. Core infrastructure includes API Gateway with request proxying, Prisma ORM with MariaDB integration for data persistence, user registration with password hashing, and comprehensive configuration management. Authentication service now has real database integration for user creation and validation.
 
 **Technologies Used**:
 
@@ -15,6 +15,9 @@ MicroNest is a microservices-based application built using NestJS framework with
 - **Validation**: class-validator, class-transformer
 - **Proxy**: http-proxy-middleware
 - **HTTP Client**: Axios
+- **ORM**: Prisma v7.6.0 with MariaDB adapter
+- **Database**: MariaDB 3.4.5
+- **Password Hashing**: bcrypt v6.0.0
 
 ## Architecture
 
@@ -162,7 +165,7 @@ export class ProxyService {
 
 ### Auth Service
 
-**Purpose**: Handles user authentication including registration and login.
+**Purpose**: Handles user authentication including registration and login with persistent data storage.
 
 **Key Components**:
 
@@ -190,7 +193,7 @@ async function bootstrap() {
 ```typescript
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
-import { RegisterDto } from '@micro-nest/dto';
+import type { UserCreateInput } from '../generated/prisma/models';
 
 @Controller()
 export class AppController {
@@ -202,18 +205,105 @@ export class AppController {
   }
 
   @Post('/register')
-  register(@Body() body: RegisterDto) {
-    console.log('Auth Service received body:', body);
-
-    return {
-      message: 'ok',
-      received: body,
-    };
+  register(@Body() body: UserCreateInput) {
+    return this.appService.register(body);
   }
 }
 ```
 
-**Current Implementation Status**: Basic registration endpoint that logs the received data and returns a success message. No actual user creation or database integration yet.
+#### Prisma Service (`apps/auth-service/src/app/prisma.service.ts`)
+
+Manages database connections with MariaDB adapter:
+
+```typescript
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import { getConfig } from '@micro/config';
+
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  constructor() {
+    const config = getConfig('db_config');
+    const adapter = new PrismaMariaDb(config.url, {
+      onConnectionError(err) {
+        console.error('Database connection error:', err);
+      },
+    });
+    super({
+      adapter,
+    });
+  }
+
+  async onModuleInit() {
+    await this.$connect();
+  }
+
+  async onModuleDestroy() {
+    await this.$disconnect();
+  }
+}
+```
+
+#### App Service (`apps/auth-service/src/app/app.service.ts`)
+
+Contains business logic for user registration with password hashing:
+
+```typescript
+import { RegisterDto } from '@micro-nest/dto';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+import bcrypt from 'bcrypt';
+
+@Injectable()
+export class AppService {
+  constructor(private prisma: PrismaService) {}
+
+  async register(data: RegisterDto) {
+    // Check if user already exists
+    const existing = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existing) {
+      throw new ConflictException('Email already exists');
+    }
+
+    // Hash password with bcrypt
+    const hashed = await bcrypt.hash(data.password, 10);
+
+    // Create user in database
+    const user = await this.prisma.user.create({
+      data: {
+        email: data.email,
+        password: hashed,
+        full_name: data.full_name,
+      },
+    });
+
+    return {
+      statusCode: 201,
+      message: 'User registered successfully',
+      received: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+      },
+    };
+  }
+
+  getData(): { message: string } {
+    return { message: 'Hello API' };
+  }
+}
+```
+
+**Current Implementation Status**: Full user registration with database persistence. Features include:
+
+- Email uniqueness validation
+- Password hashing using bcrypt (10 rounds)
+- User creation with automatic ID generation
+- Duplicate email detection with ConflictException
 
 ### User Service
 
@@ -267,7 +357,7 @@ export class RegisterDto {
 
 ### Config Library (`libs/shared/config`)
 
-Centralized configuration management for service ports and URLs.
+Centralized configuration management for service ports, URLs, and database connections.
 
 #### Service Port Config (`libs/shared/config/src/lib/service-port.config.ts`)
 
@@ -287,6 +377,24 @@ export const SERVICE_URL_CONFIG = {
   AUTH_SERVICE: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
   USER_SERVICE: process.env.USER_SERVICE_URL || 'http://localhost:3002',
 } as const;
+```
+
+#### Database Config (`libs/shared/config/src/lib/db.config.ts`)
+
+```typescript
+export const DB_CONFIG = {
+  url: process.env['DATABASE_URL'] || '',
+} as const;
+```
+
+**Configuration Usage**:
+
+The config system is now enhanced with proper TypeScript typing:
+
+```typescript
+export function getConfig<KEY extends keyof typeof config>(key: KEY): (typeof config)[KEY] {
+  return config[key];
+}
 ```
 
 ## Configuration
@@ -377,73 +485,109 @@ npx nx build api-gateway
 ### Implemented Features
 
 - ✅ Basic microservices architecture with API Gateway
-- ✅ Proxy middleware for request forwarding
+- ✅ Proxy middleware for request forwarding with request logging
 - ✅ Shared DTOs with validation
-- ✅ Centralized configuration management
+- ✅ Centralized configuration management (ports, URLs, database)
 - ✅ Nx monorepo setup with proper tooling
 - ✅ Basic E2E testing structure
 - ✅ TypeScript throughout the codebase
+- ✅ **Database Integration**: Prisma ORM with MariaDB adapter
+- ✅ **User Persistence**: User creation and storage in database
+- ✅ **Password Security**: bcrypt password hashing (10 rounds)
+- ✅ **User Validation**: Email uniqueness checking, duplicate prevention
+- ✅ **Error Handling**: ConflictException for duplicate emails, proxy error handling
 
 ### Missing/Incomplete Features
 
-- ❌ Database integration (no persistence layer)
-- ❌ Actual authentication logic (JWT, password hashing, etc.)
+- ❌ Login endpoint implementation (registration is complete)
+- ❌ JWT token generation and validation
 - ❌ User service functionality
-- ❌ Error handling and logging improvements
+- ❌ Advanced error handling and logging improvements
 - ❌ Security middleware (CORS, rate limiting, etc.)
 - ❌ API documentation (Swagger/OpenAPI)
 - ❌ Docker containerization (basic setup exists but not configured)
 - ❌ Environment-specific configurations
 - ❌ Health checks and monitoring
 - ❌ CI/CD pipelines
+- ❌ User profile management endpoints
+- ❌ Password reset functionality
 
 ### Known Issues
 
-- Auth service registration endpoint only logs data, doesn't persist users
-- No validation on auth service endpoints beyond DTO validation
-- Proxy service has basic error handling but may not cover all edge cases
-- No integration between auth and user services
+- Database URL must be set via DATABASE_URL environment variable
+- Login endpoint routing needs refinement
+- Proxy service logging could be enhanced with request IDs
+- No integration between auth and user services yet
+
+## Recent Changes (Last 2 Commits)
+
+### Commit 1: "feat: auth user database setup"
+
+- Added Prisma ORM with MariaDB adapter integration
+- Created PrismaService for database connection management
+- Added database configuration to shared config library
+- Added @prisma/adapter-mariadb and bcrypt dependencies
+
+### Commit 2: "feat: user creation is done"
+
+- Implemented full user registration flow in auth service
+- Added password hashing with bcrypt (10 salt rounds)
+- Added email uniqueness validation
+- Replaced mock registration with actual database persistence
+- Added request logging in proxy service for debugging
+- Improved error handling with ConflictException for duplicate emails
+- Enhanced config system with proper TypeScript generics for type safety
 
 ## Future Development Roadmap
 
-1. **Database Integration**
-   - Add database (PostgreSQL/MongoDB)
-   - Implement user model and repository
-   - Add database migrations
+1. **Authentication Completion** (HIGH PRIORITY)
+   - ✅ User registration with database (DONE)
+   - Implement login endpoint with credential validation
+   - Implement JWT token generation and validation
+   - Add refresh token mechanism
+   - Create authentication middleware for protected routes
 
-2. **Authentication Enhancement**
-   - Implement JWT token generation/validation
-   - Password hashing with bcrypt
-   - Login endpoint with proper authentication
-   - Middleware for protected routes
-
-3. **User Service Development**
-   - User CRUD operations
-   - Profile management
+2. **User Service Development**
+   - User profile retrieval endpoints
+   - User profile update functionality
+   - User deletion with cascading permissions
    - User search and filtering
 
-4. **API Gateway Improvements**
-   - Authentication middleware
-   - Request/response logging
-   - Rate limiting
+3. **API Gateway Improvements**
+   - Authentication middleware for protected routes
+   - Enhanced request/response logging with correlation IDs
+   - Rate limiting per IP/user
    - CORS configuration
+   - Request validation
 
-5. **Infrastructure**
-   - Docker Compose setup
+4. **Infrastructure & DevOps**
+   - Docker Compose setup with MariaDB
+   - Environment configuration files (.env.example)
+   - Database migration scripts
+   - Health check endpoints
    - Kubernetes manifests
    - CI/CD with Nx Cloud
-   - Monitoring and logging
 
-6. **Security**
-   - Input sanitization
-   - HTTPS configuration
+5. **Security**
+   - Input sanitization and sanitizer
+   - HTTPS/TLS configuration
    - API key management
-   - Security headers
+   - Security headers (helmet)
+   - CORS configuration
+   - Request timeout configurations
+
+6. **Observability & Monitoring**
+   - Structured logging system
+   - Request tracing with correlation IDs
+   - Performance monitoring
+   - Error tracking integration
 
 7. **Documentation**
    - OpenAPI/Swagger documentation
    - API usage examples
    - Architecture diagrams
+   - Database schema documentation
+   - Deployment guides
 
 ## Project Structure Summary
 
