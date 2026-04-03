@@ -1,9 +1,0 @@
-ignoredBuiltDependencies:
-  - '@nestjs/core'
-  - '@parcel/watcher'
-  - '@prisma/engines'
-  - '@swc/core'
-  - less
-  - nx
-  - prisma
-  - unrs-resolver

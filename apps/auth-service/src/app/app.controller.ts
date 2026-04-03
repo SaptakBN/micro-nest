@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
-import { RegisterDto } from '@micro-nest/dto';
+import type { UserCreateInput } from '../generated/prisma/models';
 
 @Controller()
 export class AppController {
@@ -12,12 +12,7 @@ export class AppController {
   }
 
   @Post('/register')
-  register(@Body() body: RegisterDto) {
-    console.log('Auth Service received body:', body);
-
-    return {
-      message: 'ok',
-      received: body,
-    };
+  register(@Body() body: UserCreateInput) {
+    return this.appService.register(body);
   }
 }

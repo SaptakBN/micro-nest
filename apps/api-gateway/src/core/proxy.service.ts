@@ -27,6 +27,8 @@ export class ProxyService {
 
           proxyReq.path = forwardPath;
 
+          console.log(`Proxying request to: ${target}${forwardPath}`);
+
           if (!expressReq.body) return;
           if (proxyReq.writableEnded) return;
 
