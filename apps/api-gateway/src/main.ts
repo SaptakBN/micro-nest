@@ -22,7 +22,7 @@ async function bootstrap() {
   );
 
   app.setGlobalPrefix(globalPrefix);
-  const port = config.API_GATEWAY;
+  const port = config.PORT;
   await app.listen(port);
   Logger.log(
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,

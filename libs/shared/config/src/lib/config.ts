@@ -13,5 +13,9 @@ const config = {
 export function getConfig<KEY extends keyof typeof config>(
   key: KEY,
 ): (typeof config)[KEY] {
-  return config[key];
+  const value = config[key];
+  if (!value) {
+    throw new Error(`Configuration for key "${key}" is not defined.`);
+  }
+  return value;
 }

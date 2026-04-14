@@ -1,0 +1,156 @@
+name: micronest
+
+x-defaults: &defaults
+  restart: unless-stopped
+
+services:
+  # ================= DATABASES =================
+
+  auth-db:
+    <<: *defaults
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${AUTH_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${AUTH_DB_NAME}
+      MYSQL_USER: ${AUTH_DB_USER}
+      MYSQL_PASSWORD: ${AUTH_DB_PASSWORD}
+    volumes:
+      - auth_db_data:/var/lib/mysql
+    networks:
+      - auth-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  user-db:
+    <<: *defaults
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${USER_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${USER_DB_NAME}
+      MYSQL_USER: ${USER_DB_USER}
+      MYSQL_PASSWORD: ${USER_DB_PASSWORD}
+    volumes:
+      - user_db_data:/var/lib/mysql
+    networks:
+      - user-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ================= INFRA =================
+
+  redis:
+    <<: *defaults
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+    networks:
+      - shared-infra
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    <<: *defaults
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    networks:
+      - shared-infra
+
+  # ================= SERVICES =================
+
+  auth-service:
+    <<: *defaults
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: auth-service
+        SERVICE_PORT: ${AUTH_SERVICE_PORT}
+    environment:
+      DATABASE_URL: mysql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth-db:3306/${AUTH_DB_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      PORT: ${AUTH_SERVICE_PORT}
+    depends_on:
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      auth-db:
+        condition: service_healthy
+    networks:
+      - auth-internal
+      - shared-infra
+      - app-layer
+
+  user-service:
+    <<: *defaults
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: user-service
+        SERVICE_PORT: ${USER_SERVICE_PORT}
+    environment:
+      DATABASE_URL: mysql://${USER_DB_USER}:${USER_DB_PASSWORD}@user-db:3306/${USER_DB_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      PORT: ${USER_SERVICE_PORT}
+    depends_on:
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      user-db:
+        condition: service_healthy
+    networks:
+      - user-internal
+      - shared-infra
+      - app-layer
+
+  api-gateway:
+    <<: *defaults
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: api-gateway
+        SERVICE_PORT: ${API_GATEWAY_PORT}
+    ports:
+      - '${API_GATEWAY_PORT}:${API_GATEWAY_PORT}'
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:${AUTH_SERVICE_PORT}
+      USER_SERVICE_URL: http://user-service:${USER_SERVICE_PORT}
+      PORT: ${API_GATEWAY_PORT}
+    depends_on:
+      - auth-service
+      - user-service
+      - redis
+    networks:
+      - app-layer
+      - shared-infra
+
+# ================= NETWORKS =================
+
+networks:
+  auth-internal:
+    internal: true
+  user-internal:
+    internal: true
+  shared-infra:
+  app-layer:
+
+# ================= VOLUMES =================
+
+volumes:
+  auth_db_data:
+  user_db_data:
+  redis_data:
