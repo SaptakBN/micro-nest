@@ -49,6 +49,10 @@ RUN if [ -d "apps/${SERVICE_NAME}/prisma" ]; then \
       cp -r apps/${SERVICE_NAME}/prisma /prod/prisma; \
     fi
 
+RUN if [ -f "apps/${SERVICE_NAME}/prisma.config.js" ]; then \
+      cp apps/${SERVICE_NAME}/prisma.config.js /prod/prisma.config.js; \
+    fi
+
 # Generate Prisma client (use SAME final path)
 RUN if [ -f "apps/${SERVICE_NAME}/prisma/schema.prisma" ]; then \
       npx prisma generate \
