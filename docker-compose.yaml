@@ -49,11 +49,13 @@ services:
     image: redis:7-alpine
     command: >
       redis-server
-      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --aclfile /usr/local/etc/redis/users.acl
     networks:
       - shared-infra
     volumes:
       - redis_data:/data
+      - ./redis.acl:/usr/local/etc/redis/users.acl
 
   rabbitmq:
     <<: *defaults
@@ -92,7 +94,7 @@ services:
         SERVICE_PORT: ${AUTH_SERVICE_PORT}
     environment:
       DATABASE_URL: mysql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth-db:3306/${AUTH_DB_NAME}?allowPublicKeyRetrieval=true&ssl=false
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      REDIS_URL: redis://${REDIS_WRITE_USER}:${REDIS_WRITE_PASSWORD}@redis:6379
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
       PORT: ${AUTH_SERVICE_PORT}
     depends_on:
@@ -118,7 +120,6 @@ services:
         SERVICE_PORT: ${USER_SERVICE_PORT}
     environment:
       DATABASE_URL: mysql://${USER_DB_USER}:${USER_DB_PASSWORD}@user-db:3306/${USER_DB_NAME}?allowPublicKeyRetrieval=true&ssl=false
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
       PORT: ${USER_SERVICE_PORT}
     depends_on:
@@ -147,6 +148,7 @@ services:
     environment:
       AUTH_SERVICE_URL: http://auth-service:${AUTH_SERVICE_PORT}
       USER_SERVICE_URL: http://user-service:${USER_SERVICE_PORT}
+      REDIS_URL: redis://${REDIS_READ_USER}:${REDIS_READ_PASSWORD}@redis:6379
       PORT: ${API_GATEWAY_PORT}
       JWT_SECRET: ${JWT_SECRET}
     depends_on:

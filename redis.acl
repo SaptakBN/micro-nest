@@ -1,0 +1,8 @@
+# disable default open access
+user default off
+
+# Auth service → full access
+user write_user on >write_pass ~* +@all
+
+# API Gateway → read-only (only session validation)
+user read_user on >read_pass ~session:* +get +exists +ttl

@@ -33,6 +33,7 @@
     "dotenv": "^17.4.2",
     "dotenv-cli": "^11.0.0",
     "http-proxy-middleware": "^3.0.5",
+    "ioredis": "^5.10.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.1.13",
@@ -80,6 +81,7 @@
   "workspaces": [
     "apps/*",
     "libs/shared/*",
-    "libs/*"
+    "libs/*",
+    "libs/infra/*"
   ]
 }

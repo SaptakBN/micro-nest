@@ -26,6 +26,9 @@
     },
     {
       "path": "./libs/dto"
+    },
+    {
+      "path": "./libs/infra/redis"
     }
   ]
 }

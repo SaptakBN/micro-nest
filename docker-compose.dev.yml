@@ -27,7 +27,12 @@ services:
     image: redis:7-alpine
     ports:
       - '6380:6379'
-    command: redis-server --requirepass password
+    volumes:
+      - ./redis.acl:/usr/local/etc/redis/users.acl
+    command: >
+      redis-server
+      --appendonly yes
+      --aclfile /usr/local/etc/redis/users.acl
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
