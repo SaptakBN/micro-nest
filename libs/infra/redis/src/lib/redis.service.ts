@@ -31,6 +31,18 @@ export class RedisService {
     return this.redis.srem(key, value);
   }
 
+  hset(key: string, field: string, value: string) {
+    return this.redis.hset(key, field, value);
+  }
+
+  hget(key: string, field: string) {
+    return this.redis.hget(key, field);
+  }
+
+  hdel(key: string, field: string) {
+    return this.redis.hdel(key, field);
+  }
+
   getClient() {
     return this.redis;
   }
