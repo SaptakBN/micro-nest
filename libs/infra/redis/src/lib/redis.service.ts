@@ -43,6 +43,30 @@ export class RedisService {
     return this.redis.hdel(key, field);
   }
 
+  async hsetWithExpire<T extends Record<string, unknown>>(
+    key: string,
+    payload: T,
+    ttlSeconds: number,
+  ): Promise<void> {
+    const stringPayload: Record<string, string> = {};
+
+    for (const [k, v] of Object.entries(payload)) {
+      stringPayload[k] = String(v);
+    }
+
+    await this.redis.hset(key, stringPayload);
+    await this.redis.expire(key, ttlSeconds);
+  }
+
+  async hgetAllTyped<T extends Record<string, unknown>>(
+    key: string,
+  ): Promise<T | null> {
+    const result = await this.redis.hgetall(key);
+    if (!result || Object.keys(result).length === 0) return null;
+
+    return result as unknown as T;
+  }
+
   getClient() {
     return this.redis;
   }

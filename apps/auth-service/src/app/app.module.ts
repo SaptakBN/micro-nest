@@ -5,6 +5,8 @@ import { PrismaService } from './prisma.service';
 import { JwtModule } from '@nestjs/jwt';
 import { getConfig } from '@micro/config';
 import { StringValue } from 'ms';
+import { RedisModule, RedisService, RedisProvider } from '@infra/redis';
+import { SessionService } from './session.service';
 
 @Module({
   imports: [
@@ -12,8 +14,15 @@ import { StringValue } from 'ms';
       secret: getConfig('jwt').secret,
       signOptions: { expiresIn: getConfig('jwt').expiresIn as StringValue },
     }),
+    RedisModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [
+    AppService,
+    PrismaService,
+    RedisService,
+    SessionService,
+    RedisProvider,
+  ],
 })
 export class AppModule {}

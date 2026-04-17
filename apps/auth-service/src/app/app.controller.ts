@@ -21,4 +21,16 @@ export class AppController {
   login(@Body() body: LoginDto) {
     return this.appService.login(body);
   }
+
+  @Post('/refresh')
+  refresh(@Body('refreshToken') refreshToken: string) {
+    if (!refreshToken) {
+      return {
+        statusCode: 400,
+        message: 'Refresh token is required',
+      };
+    }
+
+    return this.appService.refreshToken(refreshToken);
+  }
 }
