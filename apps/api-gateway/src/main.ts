@@ -7,6 +7,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { getConfig } from '@micro/config';
+import { GrpcToHttpExceptionFilter } from './core/exception.handler';
 
 async function bootstrap() {
   const config = getConfig('servicePort');
@@ -20,6 +21,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.useGlobalFilters(new GrpcToHttpExceptionFilter());
 
   app.setGlobalPrefix(globalPrefix);
   const port = config.PORT;

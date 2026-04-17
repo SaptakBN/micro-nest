@@ -1,44 +1,18 @@
-import { Controller, Req, Res, Next, Post, Body } from '@nestjs/common';
-import { ProxyService } from './proxy.service';
-import type { Request, Response, NextFunction } from 'express';
-import { getConfig } from '@micro/config';
+import { Controller, Post, Body } from '@nestjs/common';
 import { LoginDto, RegisterDto } from '@micro-nest/dto';
-
-const config = getConfig('serviceUrl');
+import { AuthClientService } from './auth.client.service';
 
 @Controller()
 export class AuthController {
-  constructor(private readonly proxyService: ProxyService) {}
+  constructor(private readonly authService: AuthClientService) {}
 
   @Post('/auth/register')
-  handleRegister(
-    @Body() body: RegisterDto,
-    @Req() req: Request,
-    @Res() res: Response,
-    @Next() next: NextFunction,
-  ) {
-    return this.proxyService.forward(
-      req,
-      res,
-      next,
-      config.AUTH_SERVICE as string,
-      '/api/register',
-    );
+  handleRegister(@Body() body: RegisterDto) {
+    return this.authService.register(body);
   }
 
   @Post('/auth/login')
-  handleLogin(
-    @Body() body: LoginDto,
-    @Req() req: Request,
-    @Res() res: Response,
-    @Next() next: NextFunction,
-  ) {
-    return this.proxyService.forward(
-      req,
-      res,
-      next,
-      config.AUTH_SERVICE as string,
-      '/api/login',
-    );
+  handleLogin(@Body() body: LoginDto) {
+    return this.authService.login(body);
   }
 }

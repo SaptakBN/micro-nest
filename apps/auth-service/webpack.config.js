@@ -25,7 +25,7 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: '../../libs/common/proto/src/lib/*.proto',
+          from: '../../libs/common/proto/*.proto',
           to: 'proto/[name][ext]',
         },
       ],

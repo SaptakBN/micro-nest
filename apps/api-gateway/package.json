@@ -6,6 +6,11 @@
     "name": "api-gateway",
     "targets": {
       "build": {
+        "inputs": [
+          "default",
+          "^default",
+          "{workspaceRoot}/proto/**/*.proto"
+        ],
         "executor": "nx:run-commands",
         "options": {
           "command": "webpack-cli build",

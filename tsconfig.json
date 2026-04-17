@@ -29,9 +29,6 @@
     },
     {
       "path": "./libs/infra/redis"
-    },
-    {
-      "path": "./libs/common/proto"
     }
   ]
 }

@@ -1,13 +1,11 @@
 import { LoginDto, RegisterDto } from '@micro-nest/dto';
-import {
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
+import { status } from '@grpc/grpc-js';
 import { PrismaService } from './prisma.service';
 import bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { SessionService } from './session.service';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
@@ -23,7 +21,10 @@ export class AppService {
     });
 
     if (existing) {
-      throw new ConflictException('Email already exists');
+      throw new RpcException({
+        code: status.ALREADY_EXISTS,
+        message: 'Email already exists',
+      });
     }
 
     const hashed = await bcrypt.hash(data.password, 10);
@@ -39,7 +40,7 @@ export class AppService {
     return {
       statusCode: 201,
       message: 'User registered successfully  ',
-      received: {
+      user: {
         id: user.id,
         email: user.email,
         full_name: user.full_name,
@@ -53,13 +54,19 @@ export class AppService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new RpcException({
+        code: status.UNAUTHENTICATED,
+        message: 'Invalid credentials',
+      });
     }
 
     const isMatch = await bcrypt.compare(data.password, user.password);
 
     if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new RpcException({
+        code: status.UNAUTHENTICATED,
+        message: 'Invalid credentials',
+      });
     }
 
     const payload = {
@@ -89,7 +96,10 @@ export class AppService {
     const session = await this.sessionService.getSession(sessionId, userId);
 
     if (!session) {
-      throw new UnauthorizedException('Invalid session');
+      throw new RpcException({
+        code: status.UNAUTHENTICATED,
+        message: 'Invalid session',
+      });
     }
 
     await this.sessionService.deleteSession(sessionId, userId);
@@ -109,7 +119,10 @@ export class AppService {
       );
 
       if (!session) {
-        throw new UnauthorizedException('Invalid session');
+        throw new RpcException({
+          code: status.UNAUTHENTICATED,
+          message: 'Invalid session',
+        });
       }
 
       const user = await this.prisma.user.findUnique({
@@ -117,7 +130,10 @@ export class AppService {
       });
 
       if (!user) {
-        throw new UnauthorizedException('User no longer exists');
+        throw new RpcException({
+          code: status.UNAUTHENTICATED,
+          message: 'User no longer exists',
+        });
       }
 
       const newPayload = {
@@ -134,7 +150,10 @@ export class AppService {
       };
     } catch (e) {
       console.log('Refresh token error:', e);
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new RpcException({
+        code: status.UNAUTHENTICATED,
+        message: 'Invalid refresh token',
+      });
     }
   }
 
@@ -144,9 +163,5 @@ export class AppService {
     return {
       message: 'Logged out from all sessions successfully',
     };
-  }
-
-  getData(): { message: string } {
-    return { message: 'Hello API' };
   }
 }

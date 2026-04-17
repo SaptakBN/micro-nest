@@ -146,8 +146,8 @@ services:
     ports:
       - '${API_GATEWAY_PORT}:${API_GATEWAY_PORT}'
     environment:
-      AUTH_SERVICE_URL: http://auth-service:${AUTH_SERVICE_PORT}
-      USER_SERVICE_URL: http://user-service:${USER_SERVICE_PORT}
+      AUTH_SERVICE_URL: auth-service:${AUTH_SERVICE_PORT}
+      USER_SERVICE_URL: user-service:${USER_SERVICE_PORT}
       REDIS_URL: redis://${REDIS_READ_USER}:${REDIS_READ_PASSWORD}@redis:6379
       PORT: ${API_GATEWAY_PORT}
       JWT_SECRET: ${JWT_SECRET}

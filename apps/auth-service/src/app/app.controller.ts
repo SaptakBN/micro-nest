@@ -1,36 +1,30 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { AppService } from './app.service';
-import type { UserCreateInput } from '../generated/prisma/models';
-import { LoginDto } from '@micro-nest/dto';
+import { GrpcMethod } from '@nestjs/microservices';
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
-  getData() {
-    return this.appService.getData();
+  @GrpcMethod('AuthService', 'Register')
+  register(data: { full_name: string; email: string; password: string }) {
+    return this.appService.register(data);
   }
 
-  @Post('/register')
-  register(@Body() body: UserCreateInput) {
-    return this.appService.register(body);
+  @GrpcMethod('AuthService', 'Login')
+  login(data: { email: string; password: string }) {
+    return this.appService.login(data);
   }
 
-  @Post('/login')
-  login(@Body() body: LoginDto) {
-    return this.appService.login(body);
-  }
-
-  @Post('/refresh')
-  refresh(@Body('refreshToken') refreshToken: string) {
-    if (!refreshToken) {
+  @GrpcMethod('AuthService', 'Refresh')
+  refresh(data: { refreshToken: string }) {
+    if (!data.refreshToken) {
       return {
         statusCode: 400,
         message: 'Refresh token is required',
       };
     }
 
-    return this.appService.refreshToken(refreshToken);
+    return this.appService.refreshToken(data.refreshToken);
   }
 }
