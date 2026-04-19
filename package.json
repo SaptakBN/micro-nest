@@ -14,7 +14,8 @@
     "docker:dev:up": "sudo docker compose -f docker-compose.dev.yml up -d",
     "docker:dev:restart": "sudo docker compose -f docker-compose.dev.yml restart",
     "docker:prod:build": "sudo docker compose build -d",
-    "docker:prod:migrate:auth": "sudo docker compose run --rm migration"
+    "docker:prod:migrate:auth": "sudo docker compose run --rm migration",
+    "generate:contracts": "protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=libs/common/contracts/src/lib/generated --ts_proto_opt=nestJs=true --ts_proto_opt=esModuleInterop=true --ts_proto_opt=snakeToCamel=false --ts_proto_opt=forceLong=string --ts_proto_opt=useOptionals=message -I ./libs/common/proto ./libs/common/proto/*.proto"
   },
   "private": true,
   "dependencies": {
@@ -74,8 +75,10 @@
     "nx": "22.6.4",
     "prettier": "~3.6.2",
     "prisma": "^7.6.0",
+    "protobufjs": "^8.0.1",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
+    "ts-proto": "^2.11.6",
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",

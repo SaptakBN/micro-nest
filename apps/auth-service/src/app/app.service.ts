@@ -1,4 +1,3 @@
-import { LoginDto, RegisterDto } from '@micro-nest/dto';
 import { RpcException } from '@nestjs/microservices';
 import { status } from '@grpc/grpc-js';
 import { PrismaService } from './prisma.service';
@@ -6,6 +5,7 @@ import bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { SessionService } from './session.service';
 import { Injectable } from '@nestjs/common';
+import { LoginRequest, RegisterRequest } from '@common/contracts';
 
 @Injectable()
 export class AppService {
@@ -15,7 +15,7 @@ export class AppService {
     private readonly sessionService: SessionService,
   ) {}
 
-  async register(data: RegisterDto) {
+  async register(data: RegisterRequest) {
     const existing = await this.prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -38,8 +38,6 @@ export class AppService {
     });
 
     return {
-      statusCode: 201,
-      message: 'User registered successfully  ',
       user: {
         id: user.id,
         email: user.email,
@@ -48,7 +46,7 @@ export class AppService {
     };
   }
 
-  async login(data: LoginDto) {
+  async login(data: LoginRequest) {
     const user = await this.prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -75,20 +73,20 @@ export class AppService {
     };
 
     // 1. generate refresh token
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refresh_token = this.jwtService.sign(payload, { expiresIn: '7d' });
 
     // 2. create session in Redis
     const sessionId = await this.sessionService.createSession(user.id);
 
     // 3. generate access token (IMPORTANT: include sid)
-    const accessToken = this.jwtService.sign({
+    const access_token = this.jwtService.sign({
       sub: user.id,
       sid: sessionId,
     });
 
     return {
-      accessToken,
-      refreshToken,
+      access_token,
+      refresh_token,
     };
   }
 
@@ -109,9 +107,9 @@ export class AppService {
     };
   }
 
-  async refreshToken(oldRefreshToken: string) {
+  async refresh_token(oldrefresh_token: string) {
     try {
-      const payload = this.jwtService.verify(oldRefreshToken);
+      const payload = this.jwtService.verify(oldrefresh_token);
 
       const session = await this.sessionService.getSession(
         payload.sid,
@@ -141,12 +139,12 @@ export class AppService {
         sid: payload.sid,
       };
 
-      const newAccessToken = this.jwtService.sign(newPayload, {
+      const newaccess_token = this.jwtService.sign(newPayload, {
         expiresIn: '15m',
       });
 
       return {
-        accessToken: newAccessToken,
+        access_token: newaccess_token,
       };
     } catch (e) {
       console.log('Refresh token error:', e);

@@ -19,7 +19,7 @@
       "path": "../../libs/shared/config/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/dto/tsconfig.lib.json"
+      "path": "../../libs/common/contracts/tsconfig.lib.json"
     }
   ]
 }
