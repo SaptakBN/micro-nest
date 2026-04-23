@@ -11,9 +11,8 @@ import {
   ArgumentsHost,
 } from '@nestjs/common';
 import { status } from '@grpc/grpc-js';
-import { RpcException } from '@nestjs/microservices';
 
-@Catch(RpcException)
+@Catch()
 export class GrpcToHttpExceptionFilter implements ExceptionFilter {
   catch(
     exception: { code: number; details?: string; message?: string },
@@ -21,6 +20,14 @@ export class GrpcToHttpExceptionFilter implements ExceptionFilter {
   ) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
+
+    // ✅ If it's already an HTTP exception → don't touch it
+    if (exception instanceof HttpException) {
+      const statusCode = exception.getStatus();
+      const resBody = exception.getResponse();
+
+      return response.status(statusCode).json(resBody);
+    }
 
     // gRPC error structure
     const code = exception.code;

@@ -126,8 +126,6 @@ export class AppService {
         secret: getConfig('jwt').secret,
       });
 
-      console.log('Refresh token payload:', payload);
-
       const session = await this.sessionService.getSession(
         payload.sid,
         payload.sub,
@@ -164,7 +162,7 @@ export class AppService {
         access_token: newaccess_token,
       };
     } catch (e) {
-      console.log('Refresh token error:', e);
+      console.log(e);
       throw new RpcException({
         code: status.UNAUTHENTICATED,
         message: 'Invalid refresh token',
