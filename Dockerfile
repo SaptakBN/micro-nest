@@ -87,6 +87,9 @@ CMD sh -c "node dist/$SERVICE_NAME/main.js"
 # ================= migration (Prisma only) =================
 FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS migration
 
+ARG SERVICE_NAME
+ENV SERVICE_NAME=${SERVICE_NAME}
+
 WORKDIR /app
 
 # Install deps (needed for prisma CLI)
@@ -94,8 +97,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 # Copy ONLY prisma-related files
-COPY apps/auth-service/prisma ./prisma
-COPY apps/auth-service/prisma.config.ts ./
+COPY apps/${SERVICE_NAME}/prisma ./prisma
+COPY apps/${SERVICE_NAME}/prisma.config.ts ./
 
 # Run migrations
 CMD ["npx", "prisma", "migrate", "deploy"]

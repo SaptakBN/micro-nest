@@ -12,16 +12,16 @@ services:
       - auth_db_data:/var/lib/mysql
 
   user-db:
-    image: mysql:8
-    ports:
-      - '3308:3306'
+    image: postgres:18-alpine
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: user_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
+      POSTGRES_ROOT_PASSWORD: root
+      POSTGRES_DB: user_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - '5480:5432'
     volumes:
-      - user_db_data:/var/lib/mysql
+      - user_db_data:/var/lib/postgresql
 
   redis:
     image: redis:7-alpine

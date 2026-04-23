@@ -26,18 +26,18 @@ services:
 
   user-db:
     <<: *defaults
-    image: mysql:8
+    image: postgres:18-alpine
     environment:
-      MYSQL_ROOT_PASSWORD: ${USER_DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${USER_DB_NAME}
-      MYSQL_USER: ${USER_DB_USER}
-      MYSQL_PASSWORD: ${USER_DB_PASSWORD}
+      POSTGRES_ROOT_PASSWORD: ${USER_DB_ROOT_PASSWORD}
+      POSTGRES_DB: ${USER_DB_NAME}
+      POSTGRES_USER: ${USER_DB_USER}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD}
     volumes:
-      - user_db_data:/var/lib/mysql
+      - user_db_data:/var/lib/postgresql
     networks:
       - user-internal
     healthcheck:
-      test: ['CMD-SHELL', 'mysqladmin ping -h localhost || exit 1']
+      test: ['CMD-SHELL', 'pg_isready -U ${USER_DB_USER} -d ${USER_DB_NAME}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -68,18 +68,35 @@ services:
 
   # ================= MIGRATION =================
 
-  migration:
+  migration-auth:
     build:
       context: .
       dockerfile: Dockerfile
       target: migration
+      args:
+        SERVICE_NAME: auth-service
     environment:
-      DATABASE_URL: mysql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth-db:3306/${AUTH_DB_NAME}?allowPublicKeyRetrieval=true&ssl=false
+      DATABASE_URL: mysql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth-db:3306/${AUTH_DB_NAME}
     depends_on:
       auth-db:
         condition: service_healthy
     networks:
       - auth-internal
+
+  migration-user:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migration
+      args:
+        SERVICE_NAME: user-service
+    environment:
+      DATABASE_URL: postgresql://${USER_DB_USER}:${USER_DB_PASSWORD}@user-db:5432/${USER_DB_NAME}
+    depends_on:
+      user-db:
+        condition: service_healthy
+    networks:
+      - user-internal
 
   # ================= SERVICES =================
 
@@ -119,7 +136,7 @@ services:
         SERVICE_NAME: user-service
         SERVICE_PORT: ${USER_SERVICE_PORT}
     environment:
-      DATABASE_URL: mysql://${USER_DB_USER}:${USER_DB_PASSWORD}@user-db:3306/${USER_DB_NAME}?allowPublicKeyRetrieval=true&ssl=false
+      DATABASE_URL: postgresql://${USER_DB_USER}:${USER_DB_PASSWORD}@user-db:5432/${USER_DB_NAME}?allowPublicKeyRetrieval=true&ssl=false
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
       PORT: ${USER_SERVICE_PORT}
     depends_on:
