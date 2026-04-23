@@ -152,6 +152,7 @@ export class AppService {
       const newPayload = {
         sub: payload.sub,
         sid: payload.sid,
+        email: user.email,
       };
 
       const newaccess_token = this.jwtService.sign(newPayload, {
