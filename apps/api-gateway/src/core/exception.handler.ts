@@ -11,8 +11,9 @@ import {
   ArgumentsHost,
 } from '@nestjs/common';
 import { status } from '@grpc/grpc-js';
+import { RpcException } from '@nestjs/microservices';
 
-@Catch()
+@Catch(RpcException)
 export class GrpcToHttpExceptionFilter implements ExceptionFilter {
   catch(
     exception: { code: number; details?: string; message?: string },

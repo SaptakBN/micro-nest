@@ -68,9 +68,12 @@ export class AppService {
       });
     }
 
+    const session = await this.sessionService.createSession(user.id);
+
     const payload = {
       sub: user.id,
       email: user.email,
+      sid: session.sessionId,
     };
 
     // 1. generate refresh token
@@ -80,7 +83,6 @@ export class AppService {
     });
 
     // 2. create session in Redis
-    const session = await this.sessionService.createSession(user.id);
 
     // 3. generate access token (IMPORTANT: include sid)
     const access_token = this.jwtService.sign(
@@ -120,7 +122,11 @@ export class AppService {
 
   async refresh_token(oldrefresh_token: string) {
     try {
-      const payload = this.jwtService.verify(oldrefresh_token);
+      const payload = this.jwtService.verify(oldrefresh_token, {
+        secret: getConfig('jwt').secret,
+      });
+
+      console.log('Refresh token payload:', payload);
 
       const session = await this.sessionService.getSession(
         payload.sid,

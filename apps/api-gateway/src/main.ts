@@ -21,14 +21,13 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
   app.useGlobalFilters(new GrpcToHttpExceptionFilter());
 
   app.setGlobalPrefix(globalPrefix);
   const port = config.PORT;
   await app.listen(port);
-  Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
-  );
+  Logger.log(`🚀 Application is running on: http://localhost:${port}`);
 }
 
 bootstrap();
