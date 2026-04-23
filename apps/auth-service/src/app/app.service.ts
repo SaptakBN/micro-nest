@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { SessionService } from './session.service';
 import { Injectable } from '@nestjs/common';
 import { LoginRequest, RegisterRequest } from '@common/contracts';
+import { getConfig } from '@micro/config';
 
 @Injectable()
 export class AppService {
@@ -73,16 +74,26 @@ export class AppService {
     };
 
     // 1. generate refresh token
-    const refresh_token = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refresh_token = this.jwtService.sign(payload, {
+      expiresIn: '7d',
+      secret: getConfig('jwt').secret,
+    });
 
     // 2. create session in Redis
-    const sessionId = await this.sessionService.createSession(user.id);
+    const session = await this.sessionService.createSession(user.id);
 
     // 3. generate access token (IMPORTANT: include sid)
-    const access_token = this.jwtService.sign({
-      sub: user.id,
-      sid: sessionId,
-    });
+    const access_token = this.jwtService.sign(
+      {
+        sub: user.id,
+        sid: session.sessionId,
+        email: user.email,
+      },
+      {
+        expiresIn: '15m',
+        secret: getConfig('jwt').secret,
+      },
+    );
 
     return {
       access_token,

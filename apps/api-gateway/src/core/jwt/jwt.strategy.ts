@@ -2,23 +2,35 @@ import { getConfig } from '@micro/config';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { SessionService } from '../session.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private readonly sessionService: SessionService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       secretOrKey: getConfig('jwt').secret,
     });
   }
 
-  async validate(payload: { sub: string; email: string }) {
-    if (!payload?.sub) {
+  async validate(payload: { sid: string; sub: string; email: string }) {
+    if (!payload?.sid) {
       throw new UnauthorizedException('Invalid token');
     }
 
+    console.log('Validating JWT with payload:', payload);
+
+    const session = await this.sessionService.getSession(
+      payload.sid,
+      payload.sub,
+    );
+
+    if (!session) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
     return {
-      userId: payload.sub,
+      userId: session.userId,
       email: payload.email,
     };
   }

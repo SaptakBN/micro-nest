@@ -5,7 +5,7 @@ import { PrismaService } from './prisma.service';
 import { JwtModule } from '@nestjs/jwt';
 import { getConfig } from '@micro/config';
 import { StringValue } from 'ms';
-import { RedisModule, RedisService, RedisProvider } from '@infra/redis';
+import { RedisModule } from '@infra/redis';
 import { SessionService } from './session.service';
 
 @Module({
@@ -17,12 +17,6 @@ import { SessionService } from './session.service';
     RedisModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    PrismaService,
-    RedisService,
-    SessionService,
-    RedisProvider,
-  ],
+  providers: [AppService, PrismaService, SessionService],
 })
 export class AppModule {}

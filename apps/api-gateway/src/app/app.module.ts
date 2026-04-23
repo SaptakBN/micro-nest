@@ -8,10 +8,13 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { getConfig } from '@micro/config';
 import { AuthClientService } from '../core/auth.client.service';
+import { RedisModule } from '@infra/redis';
+import { SessionService } from '../core/session.service';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
+    RedisModule,
     ClientsModule.registerAsync([
       {
         name: 'AUTH_SERVICE',
@@ -30,6 +33,6 @@ import { AuthClientService } from '../core/auth.client.service';
     ]),
   ],
   controllers: [AppController, AuthController],
-  providers: [AppService, JwtStrategy, AuthClientService],
+  providers: [AppService, JwtStrategy, AuthClientService, SessionService],
 })
 export class AppModule {}
