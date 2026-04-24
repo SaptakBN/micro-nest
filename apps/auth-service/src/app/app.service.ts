@@ -7,6 +7,7 @@ import { SessionService } from './session.service';
 import { Injectable } from '@nestjs/common';
 import { LoginRequest, RegisterRequest } from '@common/contracts';
 import { getConfig } from '@micro/config';
+import { UserClient } from './user.client.service';
 
 @Injectable()
 export class AppService {
@@ -14,6 +15,7 @@ export class AppService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
+    private readonly userClient: UserClient,
   ) {}
 
   async register(data: RegisterRequest) {
@@ -35,6 +37,14 @@ export class AppService {
         email: data.email,
         password: hashed,
         full_name: data.full_name,
+      },
+    });
+
+    await this.userClient.create({
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
       },
     });
 

@@ -1,12 +1,18 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { AppService } from './app.service';
+import {
+  UserCreateRequest,
+  UserCreateResponse,
+  UserServiceController,
+  UserServiceControllerMethods,
+} from '@common/contracts';
 
 @Controller()
-export class AppController {
+@UserServiceControllerMethods()
+export class AppController implements UserServiceController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
-  getData() {
-    return this.appService.getData();
+  createUser(request: UserCreateRequest): Promise<UserCreateResponse> {
+    return this.appService.createUser(request);
   }
 }

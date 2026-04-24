@@ -1,10 +1,10 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { LoginDto, RegisterDto, RefreshTokenDto } from '@micro-nest/dto';
-import { AuthClientService } from './auth.client.service';
+import { AuthClient } from './auth.client.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthClientService) {}
+  constructor(private readonly authService: AuthClient) {}
 
   @Post('/register')
   handleRegister(@Body() body: RegisterDto) {

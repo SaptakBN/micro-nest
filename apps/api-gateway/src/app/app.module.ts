@@ -7,9 +7,10 @@ import { PassportModule } from '@nestjs/passport';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { getConfig } from '@micro/config';
-import { AuthClientService } from '../core/auth.client.service';
+import { AuthClient } from '../core/auth.client.service';
 import { RedisModule } from '@infra/redis';
 import { SessionService } from '../core/session.service';
+import { AUTH_PACKAGE_NAME } from '@common/contracts';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { SessionService } from '../core/session.service';
         useFactory: () => ({
           transport: Transport.GRPC,
           options: {
-            package: 'auth',
+            package: AUTH_PACKAGE_NAME,
             protoPath: join(__dirname, 'proto/auth.proto'),
             url: getConfig('serviceUrl').AUTH_SERVICE,
             loader: {
@@ -33,6 +34,6 @@ import { SessionService } from '../core/session.service';
     ]),
   ],
   controllers: [AppController, AuthController],
-  providers: [AppService, JwtStrategy, AuthClientService, SessionService],
+  providers: [AppService, JwtStrategy, AuthClient, SessionService],
 })
 export class AppModule {}

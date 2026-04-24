@@ -10,7 +10,7 @@ import {
 import { BaseGrpcClient } from './grpc-base.client';
 
 @Injectable()
-export class AuthClientService extends BaseGrpcClient<AuthServiceClient> {
+export class AuthClient extends BaseGrpcClient<AuthServiceClient> {
   constructor(@Inject('AUTH_SERVICE') client: ClientGrpc) {
     super(client, AUTH_SERVICE_NAME);
   }

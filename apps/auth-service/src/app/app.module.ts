@@ -7,6 +7,10 @@ import { getConfig } from '@micro/config';
 import { StringValue } from 'ms';
 import { RedisModule } from '@infra/redis';
 import { SessionService } from './session.service';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { USER_PACKAGE_NAME } from '@common/contracts';
+import { join } from 'path';
+import { UserClient } from './user.client.service';
 
 @Module({
   imports: [
@@ -14,9 +18,25 @@ import { SessionService } from './session.service';
       secret: getConfig('jwt').secret,
       signOptions: { expiresIn: getConfig('jwt').expiresIn as StringValue },
     }),
+    ClientsModule.registerAsync([
+      {
+        name: 'USER_SERVICE',
+        useFactory: () => ({
+          transport: Transport.GRPC,
+          options: {
+            package: USER_PACKAGE_NAME,
+            protoPath: join(__dirname, 'proto/user.proto'),
+            url: getConfig('serviceUrl').USER_SERVICE,
+            loader: {
+              keepCase: true,
+            },
+          },
+        }),
+      },
+    ]),
     RedisModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService, SessionService],
+  providers: [AppService, PrismaService, SessionService, UserClient],
 })
 export class AppModule {}
