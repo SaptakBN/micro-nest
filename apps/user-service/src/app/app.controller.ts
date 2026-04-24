@@ -3,6 +3,8 @@ import { AppService } from './app.service';
 import {
   UserCreateRequest,
   UserCreateResponse,
+  UserGetProfileRequest,
+  UserProfile,
   UserServiceController,
   UserServiceControllerMethods,
 } from '@common/contracts';
@@ -14,5 +16,9 @@ export class AppController implements UserServiceController {
 
   createUser(request: UserCreateRequest): Promise<UserCreateResponse> {
     return this.appService.createUser(request);
+  }
+
+  getUserProfile(request: UserGetProfileRequest): Promise<UserProfile> {
+    return this.appService.getAuthenticatedUser(request);
   }
 }

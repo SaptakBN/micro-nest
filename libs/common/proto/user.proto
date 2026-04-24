@@ -2,16 +2,22 @@ syntax = "proto3";
 
 package user;
 
+import "google/protobuf/timestamp.proto";
+
+
 service UserService {
   rpc CreateUser (UserCreateRequest) returns (UserCreateResponse);
+  rpc GetUserProfile (UserGetProfileRequest) returns (UserProfile);
+  rpc UpdateUserProfile (UserUpdateRequest) returns (UserProfile);
 }
+
 
 message UserProfile {
   string id = 1;
   string full_name = 2;
   string email = 3;
   optional Gender gender = 4;
-  optional string dob = 5;
+  optional google.protobuf.Timestamp dob = 5;
   optional string phone = 6;
   optional string city = 7;
   optional string country = 8;
@@ -29,4 +35,17 @@ message UserCreateRequest {
 
 message UserCreateResponse {
   UserProfile user = 1;
+}
+
+message UserGetProfileRequest {
+  string user_id = 1;
+}
+
+message UserUpdateRequest {
+  optional string full_name = 2;
+  optional Gender gender = 4;
+  optional google.protobuf.Timestamp dob = 5;
+  optional string phone = 6;
+  optional string city = 7;
+  optional string country = 8;
 }

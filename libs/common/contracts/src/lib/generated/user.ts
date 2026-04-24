@@ -5,25 +5,30 @@
 // source: user.proto
 
 /* eslint-disable */
-import { GrpcMethod, GrpcStreamMethod } from '@nestjs/microservices';
-import { Observable } from 'rxjs';
+import { GrpcMethod, GrpcStreamMethod } from "@nestjs/microservices";
+import { wrappers } from "protobufjs";
+import { Observable } from "rxjs";
 
-export const protobufPackage = 'user';
+export const protobufPackage = "user";
 
-export enum Gender {
-  male = 'male',
-  female = 'female',
+export const Gender = { male: "male", female: "female" } as const;
+
+export type Gender = typeof Gender[keyof typeof Gender];
+
+export namespace Gender {
+  export type male = typeof Gender.male;
+  export type female = typeof Gender.female;
 }
 
 export interface UserProfile {
   id: string;
   full_name: string;
   email: string;
-  gender?: Gender | undefined;
-  dob?: string | undefined;
-  phone?: string | undefined;
-  city?: string | undefined;
-  country?: string | undefined;
+  gender?: Gender | null | undefined;
+  dob?: Date | null | undefined;
+  phone?: string | null | undefined;
+  city?: string | null | undefined;
+  country?: string | null | undefined;
 }
 
 export interface UserCreateRequest {
@@ -34,48 +39,61 @@ export interface UserCreateResponse {
   user: UserProfile;
 }
 
-export const USER_PACKAGE_NAME = 'user';
+export interface UserGetProfileRequest {
+  user_id: string;
+}
+
+export interface UserUpdateRequest {
+  full_name?: string | null | undefined;
+  gender?: Gender | null | undefined;
+  dob?: Date | null | undefined;
+  phone?: string | null | undefined;
+  city?: string | null | undefined;
+  country?: string | null | undefined;
+}
+
+export const USER_PACKAGE_NAME = "user";
+
+wrappers[".google.protobuf.Timestamp"] = {
+  fromObject(value: Date) {
+    return { seconds: value.getTime() / 1000, nanos: (value.getTime() % 1000) * 1e6 };
+  },
+  toObject(message: { seconds: number; nanos: number }) {
+    return new Date(message.seconds * 1000 + message.nanos / 1e6);
+  },
+} as any;
 
 export interface UserServiceClient {
   createUser(request: UserCreateRequest): Observable<UserCreateResponse>;
+
+  getUserProfile(request: UserGetProfileRequest): Observable<UserProfile>;
+
+  updateUserProfile(request: UserUpdateRequest): Observable<UserProfile>;
 }
 
 export interface UserServiceController {
   createUser(
     request: UserCreateRequest,
-  ):
-    | Promise<UserCreateResponse>
-    | Observable<UserCreateResponse>
-    | UserCreateResponse;
+  ): Promise<UserCreateResponse> | Observable<UserCreateResponse> | UserCreateResponse;
+
+  getUserProfile(request: UserGetProfileRequest): Promise<UserProfile> | Observable<UserProfile> | UserProfile;
+
+  updateUserProfile(request: UserUpdateRequest): Promise<UserProfile> | Observable<UserProfile> | UserProfile;
 }
 
 export function UserServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ['createUser'];
+    const grpcMethods: string[] = ["createUser", "getUserProfile", "updateUserProfile"];
     for (const method of grpcMethods) {
-      const descriptor: any = Reflect.getOwnPropertyDescriptor(
-        constructor.prototype,
-        method,
-      );
-      GrpcMethod('UserService', method)(
-        constructor.prototype[method],
-        method,
-        descriptor,
-      );
+      const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
+      GrpcMethod("UserService", method)(constructor.prototype[method], method, descriptor);
     }
     const grpcStreamMethods: string[] = [];
     for (const method of grpcStreamMethods) {
-      const descriptor: any = Reflect.getOwnPropertyDescriptor(
-        constructor.prototype,
-        method,
-      );
-      GrpcStreamMethod('UserService', method)(
-        constructor.prototype[method],
-        method,
-        descriptor,
-      );
+      const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
+      GrpcStreamMethod("UserService", method)(constructor.prototype[method], method, descriptor);
     }
   };
 }
 
-export const USER_SERVICE_NAME = 'UserService';
+export const USER_SERVICE_NAME = "UserService";

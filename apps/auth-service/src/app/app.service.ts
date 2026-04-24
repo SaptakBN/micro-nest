@@ -51,7 +51,6 @@ export class AppService {
       user: {
         id: user.id,
         email: user.email,
-        full_name: data.full_name,
       },
     };
   }

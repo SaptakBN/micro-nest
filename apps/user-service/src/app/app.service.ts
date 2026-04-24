@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
-import { UserCreateRequest, UserCreateResponse } from '@common/contracts';
+import {
+  UserCreateRequest,
+  UserCreateResponse,
+  UserGetProfileRequest,
+  UserProfile,
+} from '@common/contracts';
 import { RpcException } from '@nestjs/microservices';
 import { status } from '@grpc/grpc-js';
 
@@ -30,5 +35,24 @@ export class AppService {
         email: createdUser.email,
       },
     };
+  }
+
+  async getAuthenticatedUser(
+    data: UserGetProfileRequest,
+  ): Promise<UserProfile> {
+    const user = await this.prismaClient.user.findUnique({
+      where: { id: data.user_id },
+    });
+
+    if (!user) {
+      throw new RpcException({
+        code: status.NOT_FOUND,
+        message: 'User not found',
+      });
+    }
+
+    const { createdAt: _c, updatedAt: _u, ...userWithoutTimestamps } = user;
+
+    return userWithoutTimestamps;
   }
 }
