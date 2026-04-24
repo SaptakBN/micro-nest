@@ -7,7 +7,7 @@ import { getConfig } from '@micro/config';
 import { StringValue } from 'ms';
 import { RedisModule } from '@infra/redis';
 import { SessionService } from './session.service';
-import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ClientsModule, GrpcOptions, Transport } from '@nestjs/microservices';
 import { USER_PACKAGE_NAME } from '@common/contracts';
 import { join } from 'path';
 import { UserClient } from './user.client.service';
@@ -21,17 +21,22 @@ import { UserClient } from './user.client.service';
     ClientsModule.registerAsync([
       {
         name: 'USER_SERVICE',
-        useFactory: () => ({
-          transport: Transport.GRPC,
-          options: {
-            package: USER_PACKAGE_NAME,
-            protoPath: join(__dirname, 'proto/user.proto'),
-            url: getConfig('serviceUrl').USER_SERVICE,
-            loader: {
-              keepCase: true,
+        useFactory: () =>
+          ({
+            transport: Transport.GRPC,
+            options: {
+              package: USER_PACKAGE_NAME,
+              protoPath: join(__dirname, 'proto/user.proto'),
+              url: getConfig('serviceUrl').USER_SERVICE,
+              loader: {
+                keepCase: true,
+                enums: String,
+                arrays: true,
+                objects: true,
+                longs: Number,
+              },
             },
-          },
-        }),
+          }) as GrpcOptions,
       },
     ]),
     RedisModule,

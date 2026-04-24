@@ -11,7 +11,7 @@ export class ProfileUpdateDto {
   gender?: Gender | null | undefined;
 
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value).getTime() : value))
+  @Transform(({ value }) => (value ? toTimestamp(new Date(value)) : value))
   dob?: Date | null | undefined;
 
   @IsOptional()
@@ -25,4 +25,13 @@ export class ProfileUpdateDto {
   @IsOptional()
   @IsString()
   country?: string | null | undefined;
+}
+
+function toTimestamp(date: Date) {
+  const ms = date.getTime();
+
+  return {
+    seconds: Math.floor(ms / 1000),
+    nanos: (ms % 1000) * 1_000_000,
+  };
 }

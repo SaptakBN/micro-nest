@@ -7,7 +7,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { getConfig } from '@micro/config';
-import { Transport } from '@nestjs/microservices';
+import { GrpcOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { AUTH_PACKAGE_NAME } from '@common/contracts';
 
@@ -18,7 +18,7 @@ async function bootstrap() {
   app.setGlobalPrefix(globalPrefix);
   const port = config.PORT;
 
-  app.connectMicroservice({
+  app.connectMicroservice<GrpcOptions>({
     transport: Transport.GRPC,
     options: {
       package: AUTH_PACKAGE_NAME,
@@ -26,6 +26,10 @@ async function bootstrap() {
       url: `0.0.0.0:${port}`,
       loader: {
         keepCase: true,
+        enums: String,
+        arrays: true,
+        objects: true,
+        longs: Number,
       },
     },
   });

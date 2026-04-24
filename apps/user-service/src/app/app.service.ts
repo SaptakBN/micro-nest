@@ -72,6 +72,12 @@ export class AppService {
       });
     }
 
+    if (userProp.dob) {
+      userProp.dob = this.fromTimestamp(
+        userProp.dob as unknown as { seconds: number; nanos: number },
+      );
+    }
+
     const cleanData = Object.fromEntries(
       Object.entries(userProp).filter(
         ([_, v]) => v !== undefined && v !== null,
@@ -90,5 +96,10 @@ export class AppService {
     } = updatedUser;
 
     return userWithoutTimestamps;
+  }
+
+  fromTimestamp(ts?: { seconds: number; nanos: number }) {
+    if (!ts) return null;
+    return new Date(ts.seconds * 1000 + ts.nanos / 1_000_000);
   }
 }

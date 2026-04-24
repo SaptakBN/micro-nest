@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { AuthController } from '../core/auth.controller';
 import { JwtStrategy } from '../core/jwt/jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
-import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ClientsModule, GrpcOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { getConfig } from '@micro/config';
 import { AuthClient } from '../core/auth.client.service';
@@ -21,31 +21,41 @@ import { UserController } from '../core/user.controller';
     ClientsModule.registerAsync([
       {
         name: 'AUTH_SERVICE',
-        useFactory: () => ({
-          transport: Transport.GRPC,
-          options: {
-            package: AUTH_PACKAGE_NAME,
-            protoPath: join(__dirname, 'proto/auth.proto'),
-            url: getConfig('serviceUrl').AUTH_SERVICE,
-            loader: {
-              keepCase: true,
+        useFactory: () =>
+          ({
+            transport: Transport.GRPC,
+            options: {
+              package: AUTH_PACKAGE_NAME,
+              protoPath: join(__dirname, 'proto/auth.proto'),
+              url: getConfig('serviceUrl').AUTH_SERVICE,
+              loader: {
+                keepCase: true,
+                enums: String,
+                arrays: true,
+                objects: true,
+                longs: Number,
+              },
             },
-          },
-        }),
+          }) as GrpcOptions,
       },
       {
         name: 'USER_SERVICE',
-        useFactory: () => ({
-          transport: Transport.GRPC,
-          options: {
-            package: USER_PACKAGE_NAME,
-            protoPath: join(__dirname, 'proto/user.proto'),
-            url: getConfig('serviceUrl').USER_SERVICE,
-            loader: {
-              keepCase: true,
+        useFactory: () =>
+          ({
+            transport: Transport.GRPC,
+            options: {
+              package: USER_PACKAGE_NAME,
+              protoPath: join(__dirname, 'proto/user.proto'),
+              url: getConfig('serviceUrl').USER_SERVICE,
+              loader: {
+                keepCase: true,
+                enums: String,
+                arrays: true,
+                objects: true,
+                longs: Number,
+              },
             },
-          },
-        }),
+          }) as GrpcOptions,
       },
     ]),
   ],
