@@ -10,7 +10,8 @@ import { getConfig } from '@micro/config';
 import { AuthClient } from '../core/auth.client.service';
 import { RedisModule } from '@infra/redis';
 import { SessionService } from '../core/session.service';
-import { AUTH_PACKAGE_NAME } from '@common/contracts';
+import { AUTH_PACKAGE_NAME, USER_PACKAGE_NAME } from '@common/contracts';
+import { UserClient } from '../core/user.client.service';
 
 @Module({
   imports: [
@@ -31,9 +32,23 @@ import { AUTH_PACKAGE_NAME } from '@common/contracts';
           },
         }),
       },
+      {
+        name: 'USER_SERVICE',
+        useFactory: () => ({
+          transport: Transport.GRPC,
+          options: {
+            package: USER_PACKAGE_NAME,
+            protoPath: join(__dirname, 'proto/user.proto'),
+            url: getConfig('serviceUrl').USER_SERVICE,
+            loader: {
+              keepCase: true,
+            },
+          },
+        }),
+      },
     ]),
   ],
   controllers: [AppController, AuthController],
-  providers: [AppService, JwtStrategy, AuthClient, SessionService],
+  providers: [AppService, JwtStrategy, AuthClient, SessionService, UserClient],
 })
 export class AppModule {}

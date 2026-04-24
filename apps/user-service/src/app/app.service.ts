@@ -5,6 +5,7 @@ import {
   UserCreateResponse,
   UserGetProfileRequest,
   UserProfile,
+  UserUpdateRequest,
 } from '@common/contracts';
 import { RpcException } from '@nestjs/microservices';
 import { status } from '@grpc/grpc-js';
@@ -52,6 +53,41 @@ export class AppService {
     }
 
     const { createdAt: _c, updatedAt: _u, ...userWithoutTimestamps } = user;
+
+    return userWithoutTimestamps;
+  }
+
+  async updateUserProfile({
+    userId,
+    ...userProp
+  }: UserUpdateRequest): Promise<UserProfile> {
+    const user = await this.prismaClient.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new RpcException({
+        code: status.NOT_FOUND,
+        message: 'User not found',
+      });
+    }
+
+    const cleanData = Object.fromEntries(
+      Object.entries(userProp).filter(
+        ([_, v]) => v !== undefined && v !== null,
+      ),
+    );
+
+    const updatedUser = await this.prismaClient.user.update({
+      where: { id: userId },
+      data: cleanData,
+    });
+
+    const {
+      createdAt: _c,
+      updatedAt: _u,
+      ...userWithoutTimestamps
+    } = updatedUser;
 
     return userWithoutTimestamps;
   }

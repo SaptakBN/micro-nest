@@ -44,6 +44,7 @@ export interface UserGetProfileRequest {
 }
 
 export interface UserUpdateRequest {
+  userId: string;
   full_name?: string | null | undefined;
   gender?: Gender | null | undefined;
   dob?: Date | null | undefined;

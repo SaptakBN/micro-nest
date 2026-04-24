@@ -42,10 +42,11 @@ message UserGetProfileRequest {
 }
 
 message UserUpdateRequest {
+  string userId = 1;
   optional string full_name = 2;
-  optional Gender gender = 4;
-  optional google.protobuf.Timestamp dob = 5;
-  optional string phone = 6;
-  optional string city = 7;
-  optional string country = 8;
+  optional Gender gender = 3;
+  optional google.protobuf.Timestamp dob = 4;
+  optional string phone = 5;
+  optional string city = 6;
+  optional string country = 7;
 }

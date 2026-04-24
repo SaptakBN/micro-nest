@@ -7,6 +7,7 @@ import {
   UserProfile,
   UserServiceController,
   UserServiceControllerMethods,
+  UserUpdateRequest,
 } from '@common/contracts';
 
 @Controller()
@@ -20,5 +21,8 @@ export class AppController implements UserServiceController {
 
   getUserProfile(request: UserGetProfileRequest): Promise<UserProfile> {
     return this.appService.getAuthenticatedUser(request);
+  }
+  updateUserProfile(request: UserUpdateRequest): Promise<UserProfile> {
+    return this.appService.updateUserProfile(request);
   }
 }
