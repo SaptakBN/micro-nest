@@ -36,7 +36,6 @@ export class AppService {
       data: {
         email: data.email,
         password: hashed,
-        full_name: data.full_name,
       },
     });
 
@@ -44,7 +43,7 @@ export class AppService {
       user: {
         id: user.id,
         email: user.email,
-        full_name: user.full_name,
+        full_name: data.full_name,
       },
     });
 
@@ -52,7 +51,7 @@ export class AppService {
       user: {
         id: user.id,
         email: user.email,
-        full_name: user.full_name,
+        full_name: data.full_name,
       },
     };
   }

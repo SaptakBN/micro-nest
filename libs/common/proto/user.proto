@@ -2,23 +2,31 @@ syntax = "proto3";
 
 package user;
 
-import "auth.proto";
-
 service UserService {
   rpc CreateUser (UserCreateRequest) returns (UserCreateResponse);
 }
 
-message UserCreateRequest {
-  auth.User user = 1;
-}
-
-message UserCreateResponse {
+message UserProfile {
   string id = 1;
   string full_name = 2;
   string email = 3;
-  optional string gender = 4;
+  optional Gender gender = 4;
   optional string dob = 5;
   optional string phone = 6;
   optional string city = 7;
   optional string country = 8;
+}
+
+enum Gender {
+  male = 0;
+  female = 1;
+}
+
+message UserCreateRequest {
+  UserProfile user = 1;
+}
+
+
+message UserCreateResponse {
+  UserProfile user = 1;
 }

@@ -31,7 +31,6 @@ message RegisterResponse {
 message User {
   string id = 1;
   string email = 2;
-  string full_name = 3;
 }
 
 message RefreshTokenRequest {

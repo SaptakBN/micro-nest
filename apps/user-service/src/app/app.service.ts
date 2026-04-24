@@ -24,9 +24,11 @@ export class AppService {
     });
 
     return {
-      id: createdUser.id,
-      full_name: createdUser.full_name,
-      email: createdUser.email,
+      user: {
+        id: createdUser.id,
+        full_name: createdUser.full_name,
+        email: createdUser.email,
+      },
     };
   }
 }

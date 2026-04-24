@@ -16,7 +16,6 @@ model User {
   id         String   @id @default(cuid())
   email      String   @unique
   password   String
-  full_name  String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
