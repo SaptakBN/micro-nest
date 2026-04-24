@@ -18,8 +18,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token');
     }
 
-    console.log('Validating JWT with payload:', payload);
-
     const session = await this.sessionService.getSession(
       payload.sid,
       payload.sub,

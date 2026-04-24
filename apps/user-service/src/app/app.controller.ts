@@ -23,6 +23,7 @@ export class AppController implements UserServiceController {
     return this.appService.getAuthenticatedUser(request);
   }
   updateUserProfile(request: UserUpdateRequest): Promise<UserProfile> {
+    console.log('At service', request);
     return this.appService.updateUserProfile(request);
   }
 }

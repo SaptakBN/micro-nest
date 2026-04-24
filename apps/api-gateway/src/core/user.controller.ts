@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Get, Req, Body } from '@nestjs/common';
+import { Controller, UseGuards, Get, Req, Body, Post } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt/jwt.guard';
 import { UserClient } from './user.client.service';
 import { ProfileUpdateDto } from '@micro-nest/dto';
@@ -14,11 +14,12 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('/profile/update')
+  @Post('/profile/update')
   updateProfile(
     @Req() req: Request & { user: { userId: string } },
     @Body() body: ProfileUpdateDto,
   ) {
+    console.log('At controller', body);
     return this.userClient.updateProfile({
       userId: req.user['userId'],
       ...body,

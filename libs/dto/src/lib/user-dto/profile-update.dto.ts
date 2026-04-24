@@ -1,11 +1,6 @@
-import {
-  IsDate,
-  IsEnum,
-  IsOptional,
-  IsPhoneNumber,
-  IsString,
-} from 'class-validator';
+import { IsEnum, IsOptional, IsPhoneNumber, IsString } from 'class-validator';
 import { Gender } from '@common/contracts';
+import { Transform } from 'class-transformer';
 
 export class ProfileUpdateDto {
   @IsOptional()
@@ -16,7 +11,7 @@ export class ProfileUpdateDto {
   gender?: Gender | null | undefined;
 
   @IsOptional()
-  @IsDate()
+  @Transform(({ value }) => (value ? new Date(value).getTime() : value))
   dob?: Date | null | undefined;
 
   @IsOptional()

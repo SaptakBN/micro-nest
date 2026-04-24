@@ -12,6 +12,7 @@ import { RedisModule } from '@infra/redis';
 import { SessionService } from '../core/session.service';
 import { AUTH_PACKAGE_NAME, USER_PACKAGE_NAME } from '@common/contracts';
 import { UserClient } from '../core/user.client.service';
+import { UserController } from '../core/user.controller';
 
 @Module({
   imports: [
@@ -48,7 +49,7 @@ import { UserClient } from '../core/user.client.service';
       },
     ]),
   ],
-  controllers: [AppController, AuthController],
+  controllers: [AppController, AuthController, UserController],
   providers: [AppService, JwtStrategy, AuthClient, SessionService, UserClient],
 })
 export class AppModule {}
