@@ -7,6 +7,9 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { getConfig } from '@micro/config';
+import { join } from 'path';
+import { Transport } from '@nestjs/microservices';
+import { USER_PACKAGE_NAME } from '@common/contracts';
 
 async function bootstrap() {
   const config = getConfig('servicePort');
@@ -14,10 +17,22 @@ async function bootstrap() {
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
   const port = config.PORT;
-  await app.listen(port);
-  Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
-  );
+
+  app.connectMicroservice({
+    transport: Transport.GRPC,
+    options: {
+      package: USER_PACKAGE_NAME,
+      protoPath: join(__dirname, 'proto/user.proto'),
+      url: `0.0.0.0:${port}`,
+      loader: {
+        keepCase: true,
+      },
+    },
+  });
+
+  await app.startAllMicroservices();
+
+  Logger.log(`🚀 Application is running on: http://localhost:${port}`);
 }
 
 bootstrap();
