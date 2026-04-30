@@ -1,101 +1,117 @@
 # MicroNest
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+MicroNest is a NestJS microservices project in an Nx monorepo. It exposes a REST API Gateway and uses gRPC for internal service-to-service communication between auth and user services.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## Services
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+- `api-gateway`: public REST API on `/api`; validates DTOs, handles JWT auth, checks Redis sessions, and calls internal gRPC services.
+- `auth-service`: gRPC service for registration, login, refresh tokens, password hashing, MySQL-backed credentials, and Redis session creation.
+- `user-service`: gRPC service for user profile creation, lookup, and updates backed by PostgreSQL.
 
-## Run tasks
+## Shared Libraries
 
-To run the dev server for your app, use:
+- `libs/dto`: REST request DTOs for auth and profile routes.
+- `libs/shared/config`: environment-backed configuration.
+- `libs/common/proto`: protobuf service definitions.
+- `libs/common/contracts`: generated TypeScript gRPC contracts.
+- `libs/infra/redis`: shared Redis provider/module/service.
 
-```sh
-npx nx serve micro
+## Local Setup
+
+Install dependencies:
+
+```bash
+npm install
 ```
 
-To create a production bundle:
+Start local infrastructure:
 
-```sh
-npx nx build micro
+```bash
+npm run docker:dev:up
 ```
 
-To see all available targets to run for a project, run:
+Run migrations and generate Prisma clients when needed:
 
-```sh
-npx nx show project micro
+```bash
+npm run migrate:auth:dev
+npm run migrate:user:dev
+npm run generate-client:auth
+npm run generate-client:user
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+Run all application services:
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-Use the plugin's generator to create new projects.
-
-To generate a new application, use:
-
-```sh
-npx nx g @nx/node:app demo
+```bash
+npm run start
 ```
 
-To generate a new library, use:
+Or run services individually:
 
-```sh
-npx nx g @nx/node:lib mylib
+```bash
+npm run dev:auth
+npm run dev:user
+npm run dev:gateway
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+The gateway runs on `http://localhost:3000/api` with the default development env files.
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## API Routes
 
-## Set up CI!
+| Method | Route | Description |
+| --- | --- | --- |
+| `GET` | `/api` | Basic service response. |
+| `POST` | `/api/auth/register` | Register credentials and create a user profile. |
+| `POST` | `/api/auth/login` | Return access and refresh JWTs. |
+| `POST` | `/api/auth/refresh-token` | Return a new access token. |
+| `GET` | `/api/user/profile` | Get authenticated profile. Requires bearer access token. |
+| `POST` | `/api/user/profile/update` | Update authenticated profile. Requires bearer access token. |
 
-### Step 1
+## Contracts
 
-To connect to Nx Cloud, run the following command:
+After editing `libs/common/proto/*.proto`, regenerate TypeScript contracts:
 
-```sh
-npx nx connect
+```bash
+npm run generate:contracts
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+## Build and Test
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Build all main services:
 
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
+```bash
+npm run build
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Run Nx tests:
 
-## Install Nx Console
+```bash
+npx nx run-many --target=test
+```
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+Run e2e suites:
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```bash
+npx nx run-many --target=e2e
+```
 
-## Useful links
+Current e2e coverage is still basic and does not yet cover the full auth/session/profile flow.
 
-Learn more:
+## Docker
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Development infrastructure only:
 
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```bash
+npm run docker:dev:up
+npm run docker:dev:down
+```
+
+Production-style compose includes databases, Redis, RabbitMQ, migration containers, auth service, user service, and API Gateway:
+
+```bash
+sudo docker compose build
+sudo docker compose run --rm migration-auth
+sudo docker compose run --rm migration-user
+sudo docker compose up -d
+```
+
+More detailed architecture notes and recent-history context are in [doc.md](./doc.md).

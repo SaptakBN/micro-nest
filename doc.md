@@ -2,610 +2,395 @@
 
 ## Project Overview
 
-MicroNest is a microservices-based application built using NestJS framework within an Nx monorepo. The project implements a basic authentication system with an API Gateway that proxies requests to individual services. The architecture follows microservices principles with separate services for authentication and user management, shared libraries for DTOs and configuration, and end-to-end testing.
+MicroNest is a NestJS/Nx monorepo that implements a small microservices authentication and user-profile system. The public API is exposed through an API Gateway. The gateway accepts REST requests, validates DTOs, enforces JWT/session checks for protected routes, and calls internal services over gRPC.
 
-**Current Status**: The project is actively in development. Core infrastructure includes API Gateway with request proxying, Prisma ORM with MariaDB integration for data persistence, user registration with password hashing, and comprehensive configuration management. Authentication service now has real database integration for user creation and validation.
+The current codebase has moved beyond the older HTTP proxy implementation. The API Gateway no longer uses `ProxyService` or `http-proxy-middleware` for auth/user calls. Auth and user operations are now defined in protobuf files, generated into TypeScript contracts, and consumed through NestJS gRPC clients.
 
-**Technologies Used**:
+## Current Status
 
-- **Framework**: NestJS v11
-- **Build Tool**: Nx v22.6.4
-- **Language**: TypeScript
-- **Testing**: Jest
-- **Validation**: class-validator, class-transformer
-- **Proxy**: http-proxy-middleware
-- **HTTP Client**: Axios
-- **ORM**: Prisma v7.6.0 with MariaDB adapter
-- **Database**: MariaDB 3.4.5
-- **Password Hashing**: bcrypt v6.0.0
+The main implemented flow is:
 
-## Architecture
+1. Client registers through `POST /api/auth/register`.
+2. API Gateway validates the request and calls `AuthService.Register` over gRPC.
+3. Auth service stores credentials in its MySQL database and hashes passwords with bcrypt.
+4. Auth service calls user service over gRPC to create the matching profile row in the user service PostgreSQL database.
+5. Client logs in through `POST /api/auth/login`.
+6. Auth service validates the password, creates a Redis-backed session, and returns access and refresh JWTs.
+7. Protected profile endpoints validate the access token and verify the session in Redis before calling user service.
 
-The project follows a microservices architecture with the following components:
+## Technology Stack
 
-### Applications (Services)
+- Framework: NestJS 11
+- Monorepo/build: Nx 22.6.4
+- Language: TypeScript 5.9
+- Transport: HTTP/REST at the gateway, gRPC between services
+- Contracts: protobuf + `ts-proto`
+- Auth: JWT, Passport JWT strategy, bcrypt
+- Session store: Redis through `ioredis`
+- Auth database: MySQL, Prisma 7
+- User database: PostgreSQL, Prisma 7
+- Testing: Jest and Axios-based e2e suites
+- Containerization: Dockerfile plus production and dev Docker Compose files
 
-1. **api-gateway** (Port 3000): Entry point that proxies requests to internal services
-2. **auth-service** (Port 3001): Handles authentication-related operations
-3. **user-service** (Port 3002): Manages user data and operations
+## Repository Structure
 
-### Libraries
+```text
+micro-nest/
+|-- apps/
+|   |-- api-gateway/          # Public REST gateway
+|   |-- auth-service/         # gRPC auth service, MySQL-backed credentials
+|   |-- user-service/         # gRPC user profile service, PostgreSQL-backed profiles
+|   |-- api-gateway-e2e/
+|   |-- auth-service-e2e/
+|   `-- user-service-e2e/
+|-- libs/
+|   |-- common/
+|   |   |-- proto/            # auth.proto and user.proto
+|   |   `-- contracts/        # generated ts-proto contracts
+|   |-- dto/                  # REST DTOs used by the gateway
+|   |-- infra/
+|   |   `-- redis/            # shared Redis module/service/provider
+|   `-- shared/
+|       `-- config/           # environment-backed config helpers
+|-- Dockerfile
+|-- docker-compose.yaml       # production-style stack
+|-- docker-compose.dev.yml    # local infra stack
+|-- redis.acl
+|-- package.json
+`-- nx.json
+```
 
-1. **dto**: Shared data transfer objects with validation
-2. **shared/config**: Centralized configuration management
-
-### Testing
-
-- E2E tests for each service using Jest and Axios
-
-## Services Detail
+## Applications
 
 ### API Gateway
 
-**Purpose**: Acts as a single entry point for all client requests, routing them to appropriate microservices.
+Location: `apps/api-gateway`
 
-**Key Components**:
+Purpose:
 
-#### Main Entry Point (`apps/api-gateway/src/main.ts`)
+- Exposes public REST endpoints under the `/api` global prefix.
+- Validates request bodies with a global `ValidationPipe`.
+- Uses gRPC clients to call auth and user services.
+- Converts gRPC errors into HTTP errors through `GrpcToHttpExceptionFilter`.
+- Protects user profile endpoints through Passport JWT and Redis session validation.
 
-```typescript
-import { Logger, ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app/app.module';
-import { getConfig } from '@micro/config';
+Important files:
 
-async function bootstrap() {
-  const config = getConfig('servicePort');
-  const globalPrefix = 'api';
-  const app = await NestFactory.create(AppModule);
+- `src/main.ts`: bootstraps the HTTP Nest app on `PORT`, applies validation and `GrpcToHttpExceptionFilter`.
+- `src/app/app.module.ts`: registers Passport, Redis, and gRPC clients for auth and user services.
+- `src/core/auth.controller.ts`: exposes auth REST endpoints.
+- `src/core/user.controller.ts`: exposes protected user profile REST endpoints.
+- `src/core/auth.client.service.ts`: wraps the generated `AuthServiceClient`.
+- `src/core/user.client.service.ts`: wraps the generated `UserServiceClient`.
+- `src/core/grpc-base.client.ts`: converts gRPC observables into promises with timeout, retry, and normalized error objects.
+- `src/core/jwt/jwt.strategy.ts`: validates JWT payloads and checks session existence in Redis.
+- `src/core/session.service.ts`: reads session hashes from Redis for gateway-side auth checks.
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+Public routes:
 
-  app.setGlobalPrefix(globalPrefix);
-  const port = config.API_GATEWAY;
-  await app.listen(port);
-  Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
-}
-```
-
-#### App Module (`apps/api-gateway/src/app/app.module.ts`)
-
-```typescript
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { AuthController } from '../core/auth.controller';
-import { ProxyService } from '../core/proxy.service';
-
-@Module({
-  imports: [],
-  controllers: [AppController, AuthController],
-  providers: [AppService, ProxyService],
-})
-export class AppModule {}
-```
-
-#### Auth Controller (`apps/api-gateway/src/core/auth.controller.ts`)
-
-Handles authentication routes and proxies them to the auth service:
-
-```typescript
-import { Controller, Req, Res, Next, Post, Body } from '@nestjs/common';
-import { ProxyService } from './proxy.service';
-import type { Request, Response, NextFunction } from 'express';
-import { getConfig } from '@micro/config';
-import { LoginDto, RegisterDto } from '@micro-nest/dto';
-
-const config = getConfig('serviceUrl');
-
-@Controller()
-export class AuthController {
-  constructor(private readonly proxyService: ProxyService) {}
-
-  @Post('/auth/register')
-  handleRegister(@Body() body: RegisterDto, @Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
-    return this.proxyService.forward(req, res, next, config.AUTH_SERVICE as string, '/api/register');
-  }
-
-  @Post('/auth/login')
-  handleLogin(@Body() body: LoginDto, @Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
-    return this.proxyService.forward(req, res, next, config.AUTH_SERVICE as string, '/auth');
-  }
-}
-```
-
-#### Proxy Service (`apps/api-gateway/src/core/proxy.service.ts`)
-
-Implements HTTP proxy middleware with caching and error handling:
-
-```typescript
-import { Injectable } from '@nestjs/common';
-import { createProxyMiddleware, Options } from 'http-proxy-middleware';
-import type { RequestHandler, NextFunction, Response, Request } from 'express';
-import { ServerResponse, IncomingMessage } from 'http';
-
-@Injectable()
-export class ProxyService {
-  private cache = new Map<string, RequestHandler>();
-
-  private getProxy(target: string, forwardPath: string): RequestHandler {
-    const key = `${target}_${forwardPath}`;
-
-    if (this.cache.has(key)) {
-      return this.cache.get(key) as RequestHandler;
-    }
-
-    const options: Options = {
-      target,
-      changeOrigin: true,
-      ignorePath: true,
-      timeout: 3000,
-      proxyTimeout: 3000,
-      // ... error handling and request transformation
-    };
-
-    const proxy = createProxyMiddleware(options);
-    this.cache.set(key, proxy);
-
-    return proxy;
-  }
-
-  forward(req: Request, res: Response, next: NextFunction, target: string, stripPath: string) {
-    const proxy = this.getProxy(target, stripPath);
-    return proxy(req, res, next);
-  }
-}
-```
+| Method | Route | Protection | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api` | none | Basic health/example response from the generated app controller. |
+| `POST` | `/api/auth/register` | none | Registers auth credentials and creates a user profile through gRPC. |
+| `POST` | `/api/auth/login` | none | Returns `access_token` and `refresh_token`. |
+| `POST` | `/api/auth/refresh-token` | none | Uses refresh token to issue a new access token. |
+| `GET` | `/api/user/profile` | bearer JWT + Redis session | Returns the authenticated user's profile. |
+| `POST` | `/api/user/profile/update` | bearer JWT + Redis session | Updates profile fields. |
 
 ### Auth Service
 
-**Purpose**: Handles user authentication including registration and login with persistent data storage.
+Location: `apps/auth-service`
 
-**Key Components**:
+Purpose:
 
-#### Main Entry Point (`apps/auth-service/src/main.ts`)
+- Runs as a NestJS gRPC microservice using `auth.proto`.
+- Owns authentication credentials in MySQL.
+- Hashes passwords with bcrypt.
+- Issues access and refresh JWTs.
+- Creates and deletes Redis sessions.
+- Calls user service over gRPC during registration to create the profile record.
 
-```typescript
-import { Logger } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app/app.module';
-import { getConfig } from '@micro/config';
+Important files:
 
-async function bootstrap() {
-  const config = getConfig('servicePort');
-  const app = await NestFactory.create(AppModule);
-  const globalPrefix = 'api';
-  app.setGlobalPrefix(globalPrefix);
-  const port = config.AUTH_SERVICE;
-  await app.listen(port);
-  Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
+- `src/main.ts`: creates the Nest app and connects the gRPC microservice on `0.0.0.0:${PORT}`.
+- `src/app/app.controller.ts`: implements generated `AuthServiceController`.
+- `src/app/app.service.ts`: contains register, login, refresh token, logout, and logout-all business logic.
+- `src/app/session.service.ts`: creates Redis session hashes and tracks `user_sessions:{userId}` sets.
+- `src/app/user.client.service.ts`: gRPC client used to create user profiles.
+- `prisma/schema.prisma`: MySQL schema for auth credentials.
+
+Auth database schema:
+
+```prisma
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 ```
 
-#### App Controller (`apps/auth-service/src/app/app.controller.ts`)
+Implemented gRPC methods:
 
-```typescript
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { AppService } from './app.service';
-import type { UserCreateInput } from '../generated/prisma/models';
+- `Register(RegisterRequest) returns RegisterResponse`
+- `Login(LoginRequest) returns LoginResponse`
+- `RefreshToken(RefreshTokenRequest) returns RefreshTokenResponse`
 
-@Controller()
-export class AppController {
-  constructor(private readonly appService: AppService) {}
+Notes:
 
-  @Get()
-  getData() {
-    return this.appService.getData();
-  }
-
-  @Post('/register')
-  register(@Body() body: UserCreateInput) {
-    return this.appService.register(body);
-  }
-}
-```
-
-#### Prisma Service (`apps/auth-service/src/app/prisma.service.ts`)
-
-Manages database connections with MariaDB adapter:
-
-```typescript
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '../generated/prisma/client';
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
-import { getConfig } from '@micro/config';
-
-@Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  constructor() {
-    const config = getConfig('db_config');
-    const adapter = new PrismaMariaDb(config.url, {
-      onConnectionError(err) {
-        console.error('Database connection error:', err);
-      },
-    });
-    super({
-      adapter,
-    });
-  }
-
-  async onModuleInit() {
-    await this.$connect();
-  }
-
-  async onModuleDestroy() {
-    await this.$disconnect();
-  }
-}
-```
-
-#### App Service (`apps/auth-service/src/app/app.service.ts`)
-
-Contains business logic for user registration with password hashing:
-
-```typescript
-import { RegisterDto } from '@micro-nest/dto';
-import { ConflictException, Injectable } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
-import bcrypt from 'bcrypt';
-
-@Injectable()
-export class AppService {
-  constructor(private prisma: PrismaService) {}
-
-  async register(data: RegisterDto) {
-    // Check if user already exists
-    const existing = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
-
-    if (existing) {
-      throw new ConflictException('Email already exists');
-    }
-
-    // Hash password with bcrypt
-    const hashed = await bcrypt.hash(data.password, 10);
-
-    // Create user in database
-    const user = await this.prisma.user.create({
-      data: {
-        email: data.email,
-        password: hashed,
-        full_name: data.full_name,
-      },
-    });
-
-    return {
-      statusCode: 201,
-      message: 'User registered successfully',
-      received: {
-        id: user.id,
-        email: user.email,
-        full_name: user.full_name,
-      },
-    };
-  }
-
-  getData(): { message: string } {
-    return { message: 'Hello API' };
-  }
-}
-```
-
-**Current Implementation Status**: Full user registration with database persistence. Features include:
-
-- Email uniqueness validation
-- Password hashing using bcrypt (10 rounds)
-- User creation with automatic ID generation
-- Duplicate email detection with ConflictException
+- `logout` and `logoutAll` exist in `AppService`, but they are not currently exposed in `auth.proto` or the API Gateway routes.
+- Refresh token validation verifies the JWT and checks the Redis session before issuing a new access token.
+- Access tokens include `sub`, `sid`, and `email`; the gateway uses `sid` and `sub` to validate the Redis session.
 
 ### User Service
 
-**Purpose**: Manages user data and operations.
+Location: `apps/user-service`
 
-**Current Implementation Status**: Basic NestJS service with minimal functionality. No specific user-related endpoints implemented yet.
+Purpose:
+
+- Runs as a NestJS gRPC microservice using `user.proto`.
+- Owns user profile data in PostgreSQL.
+- Creates profiles when auth registration succeeds.
+- Returns and updates authenticated user profiles.
+
+Important files:
+
+- `src/main.ts`: creates the Nest app and connects the gRPC microservice on `0.0.0.0:${PORT}`.
+- `src/app/app.controller.ts`: implements generated `UserServiceController`.
+- `src/app/app.service.ts`: creates users, reads profiles, updates profiles, and maps protobuf timestamps to JavaScript dates.
+- `src/app/prisma.service.ts`: owns PostgreSQL Prisma connection lifecycle.
+- `prisma/schema.prisma`: PostgreSQL schema for user profiles.
+
+User database schema:
+
+```prisma
+model User {
+  id        String   @id
+  email     String   @unique
+  full_name String
+  gender    Gender?
+  dob       DateTime?
+  phone     String?
+  city      String?
+  country   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Gender {
+  male
+  female
+}
+```
+
+Implemented gRPC methods:
+
+- `CreateUser(UserCreateRequest) returns UserCreateResponse`
+- `GetUserProfile(UserGetProfileRequest) returns UserProfile`
+- `UpdateUserProfile(UserUpdateRequest) returns UserProfile`
 
 ## Shared Libraries
 
-### DTO Library (`libs/dto`)
+### `libs/common/proto`
 
-Contains shared data transfer objects with validation decorators.
+Contains protobuf source contracts:
 
-#### Auth DTOs
+- `auth.proto`: auth login, registration, and refresh token RPCs.
+- `user.proto`: user creation, profile lookup, and profile update RPCs.
 
-- **LoginDto** (`libs/dto/src/lib/auth-dto/login.dto.ts`):
+### `libs/common/contracts`
 
-```typescript
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+Generated TypeScript contracts from protobuf files. The library exports generated service names, package names, request/response types, enums, and NestJS controller/client interfaces.
 
-export class LoginDto {
-  @IsNotEmpty()
-  @IsEmail()
-  email!: string;
+Regenerate contracts with:
 
-  @IsString()
-  @MinLength(6)
-  password!: string;
-}
+```bash
+npm run generate:contracts
 ```
 
-- **RegisterDto** (`libs/dto/src/lib/auth-dto/registration.dto.ts`):
+### `libs/dto`
 
-```typescript
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+DTOs used by the public REST API:
 
-export class RegisterDto {
-  @IsString()
-  @IsNotEmpty()
-  full_name!: string;
+- `RegisterDto`: `full_name`, `email`, `password`
+- `LoginDto`: `email`, `password`
+- `RefreshTokenDto`: validates `refresh_token` as a JWT
+- `ProfileUpdateDto`: optional `full_name`, `gender`, `dob`, `phone`, `city`, `country`
 
-  @IsNotEmpty()
-  @IsEmail()
-  email!: string;
+`ProfileUpdateDto` transforms `dob` values into protobuf timestamp-shaped objects before they are sent to user service.
 
-  @IsString()
-  @MinLength(6)
-  password!: string;
-}
+### `libs/shared/config`
+
+Centralized environment-backed config:
+
+- `servicePort`: `PORT`
+- `serviceUrl`: `API_GATEWAY_URL`, `AUTH_SERVICE_URL`, `USER_SERVICE_URL`
+- `db`: `DATABASE_URL`
+- `jwt`: `JWT_SECRET`, `JWT_EXPIRES_IN`
+- `redis`: `REDIS_URL`
+
+Unlike the older docs, service ports are no longer separate `API_GATEWAY_PORT`, `AUTH_SERVICE_PORT`, and `USER_SERVICE_PORT` keys inside the runtime config. Each process reads a single `PORT`.
+
+### `libs/infra/redis`
+
+Shared Redis module built on `ioredis`.
+
+It provides:
+
+- basic string operations: `get`, `set`, `del`
+- set operations: `sadd`, `smembers`, `srem`
+- hash operations: `hset`, `hget`, `hdel`
+- typed session helpers: `hsetWithExpire`, `hgetAllTyped`
+
+Redis config is read from `REDIS_URL`.
+
+## Infrastructure
+
+### Local Development Infrastructure
+
+`docker-compose.dev.yml` starts supporting services only:
+
+- MySQL on host port `3307` for auth service
+- PostgreSQL on host port `5480` for user service
+- Redis on host port `6380`
+- RabbitMQ on host port `5680`, dashboard on `15672`
+
+Start and stop local infra:
+
+```bash
+npm run docker:dev:up
+npm run docker:dev:down
 ```
 
-### Config Library (`libs/shared/config`)
+Then run app services through Nx/npm scripts.
 
-Centralized configuration management for service ports, URLs, and database connections.
+### Production-Style Compose
 
-#### Service Port Config (`libs/shared/config/src/lib/service-port.config.ts`)
+`docker-compose.yaml` defines:
 
-```typescript
-export const SERVICE_PORT_CONFIG = {
-  API_GATEWAY: process.env.API_GATEWAY_PORT || 3000,
-  AUTH_SERVICE: process.env.AUTH_SERVICE_PORT || 3001,
-  USER_SERVICE: process.env.USER_SERVICE_PORT || 3002,
-} as const;
+- `auth-db` on an internal auth network
+- `user-db` on an internal user network
+- `redis` with ACL file support
+- `rabbitmq`
+- `migration-auth` and `migration-user`
+- `auth-service`
+- `user-service`
+- `api-gateway`
+
+The gateway is the only application service with a published host port. Internal services communicate over Docker networks.
+
+### Dockerfile
+
+The Dockerfile has separate stages:
+
+- `deps`: installs workspace dependencies.
+- `builder`: builds a selected Nx service and prunes dev dependencies.
+- `runner`: runtime image for a selected service.
+- `migration`: Prisma migration image for a selected service.
+
+### Redis ACL
+
+`redis.acl` disables the default user and defines:
+
+- `write_user`: full access, used by auth service for session creation/deletion.
+- `read_user`: read-oriented access to `session:*`, used by the API Gateway for session validation.
+
+## Environment Files
+
+Development env files are split by process:
+
+- `.env.dev`: shared values such as `JWT_SECRET`, `JWT_EXPIRES_IN`, `AUTH_SERVICE_URL`, `USER_SERVICE_URL`, and `RABBITMQ_URL`.
+- `.env.dev.auth`: auth service `PORT`, MySQL `DATABASE_URL`, and write Redis URL.
+- `.env.dev.user`: user service `PORT` and PostgreSQL `DATABASE_URL`.
+- `.env.dev.gateway`: gateway `PORT` and read Redis URL.
+
+The npm dev scripts load `.env.dev` plus the service-specific env file with `dotenv-cli`.
+
+## Important Scripts
+
+```bash
+npm run start                 # run auth, user, and gateway services concurrently
+npm run dev:auth              # run auth service
+npm run dev:user              # run user service
+npm run dev:gateway           # run API Gateway
+npm run build                 # build auth, user, and gateway services concurrently
+npm run migrate:auth:dev      # run auth Prisma dev migration
+npm run migrate:user:dev      # run user Prisma dev migration
+npm run migrate:auth:deploy   # deploy auth migrations
+npm run migrate:user:deploy   # deploy user migrations
+npm run generate-client:auth  # generate auth Prisma client
+npm run generate-client:user  # generate user Prisma client
+npm run generate:contracts    # regenerate gRPC TypeScript contracts
 ```
-
-#### Service URL Config (`libs/shared/config/src/lib/service-url.config.ts`)
-
-```typescript
-export const SERVICE_URL_CONFIG = {
-  API_GATEWAY: process.env.API_GATEWAY_URL || 'http://localhost:3000',
-  AUTH_SERVICE: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
-  USER_SERVICE: process.env.USER_SERVICE_URL || 'http://localhost:3002',
-} as const;
-```
-
-#### Database Config (`libs/shared/config/src/lib/db.config.ts`)
-
-```typescript
-export const DB_CONFIG = {
-  url: process.env['DATABASE_URL'] || '',
-} as const;
-```
-
-**Configuration Usage**:
-
-The config system is now enhanced with proper TypeScript typing:
-
-```typescript
-export function getConfig<KEY extends keyof typeof config>(key: KEY): (typeof config)[KEY] {
-  return config[key];
-}
-```
-
-## Configuration
-
-### Nx Configuration (`nx.json`)
-
-- Uses Nx plugins for TypeScript, Webpack, ESLint, Jest, and Docker
-- Configured for monorepo with shared dependencies
-- Excludes e2e test directories from Jest runs
-
-### Package.json Scripts
-
-- `start`: Runs all services in parallel with watch mode
-- Individual build/serve/test commands available via Nx
 
 ## Testing
 
-### E2E Tests
+The e2e suites currently remain basic health/example tests:
 
-Each service has corresponding e2e tests that verify basic API endpoints:
+- `apps/api-gateway-e2e`
+- `apps/auth-service-e2e`
+- `apps/user-service-e2e`
 
-- **api-gateway-e2e**: Tests the gateway's root endpoint
-- **auth-service-e2e**: Tests the auth service's root endpoint
-- **user-service-e2e**: Tests the user service's root endpoint
+Each checks `GET /api` returns `{ message: 'Hello API' }`.
 
-Example test (`apps/api-gateway-e2e/src/api-gateway/api-gateway.spec.ts`):
+There are also library-level unit tests, including Redis and shared config tests.
 
-```typescript
-import axios from 'axios';
+Current gap: the implemented registration, login, refresh-token, JWT guard, profile lookup, and profile update flows are not yet covered by e2e tests.
 
-describe('GET /api', () => {
-  it('should return a message', async () => {
-    const res = await axios.get(`/api`);
+## Recent Changes Since `doc.md` Was Last Updated
 
-    expect(res.status).toBe(200);
-    expect(res.data).toEqual({ message: 'Hello API' });
-  });
-});
-```
+`doc.md` was last updated at commit `2ad8169 chore: doc updated`. The current branch is at `a9d7c70 feat: grpc parsing issues fixed`. The main changes after the previous documentation update are:
 
-## How to Run
+- Added JWT validation in the gateway (`affe219`).
+- Reworked the gateway/service communication from HTTP proxying to gRPC (`5577b93`, `5a0b129`, `6fdab7a`).
+- Added protobuf contracts and generated TypeScript contract library (`a345d2b`, `5a0b129`, `045edc0`).
+- Added Redis infrastructure, Redis ACLs, and Redis-backed auth sessions (`43bc813`, `bd385ae`, `a345d2b`, `f06d546`).
+- Implemented refresh token handling and fixed access token creation (`7e5a5f4`, `d997c0f`).
+- Added gRPC-to-HTTP exception mapping in the API Gateway (`545fbd7`).
+- Added Dockerfile, dev compose, production compose, migration containers, and related build scripts (`ceed6e9`, `5c55658`, `b97fb1b`, `a0ddb06`, `e9b81ad`).
+- Added user service Prisma schema, migrations, generated Prisma client, and PostgreSQL persistence (`ab67e1a`, `045edc0`, `91e6fd0`).
+- Added auth-service to user-service communication so registration creates a user profile (`dc2e791`).
+- Implemented profile read and update APIs (`d4fa960`, `29e2807`).
+- Fixed enum/date/gRPC parsing issues for user profile updates (`ac23c20`, `a9d7c70`).
 
-### Prerequisites
+## Current Implemented Features
 
-- Node.js
-- pnpm (recommended) or npm
+- Nx monorepo with three NestJS applications and shared libraries.
+- Public REST API Gateway.
+- Internal gRPC communication for auth and user operations.
+- Shared protobuf contracts and generated TypeScript types.
+- Registration with duplicate-email protection and bcrypt password hashing.
+- Login with access and refresh JWT generation.
+- Redis-backed session storage.
+- Gateway-side JWT strategy with Redis session validation.
+- Refresh-token endpoint.
+- User profile creation from auth registration.
+- Protected profile read endpoint.
+- Protected profile update endpoint with optional fields.
+- Separate auth and user databases.
+- Prisma migrations for auth and user services.
+- Dockerized runtime and migration images.
+- Local development compose for databases, Redis, and RabbitMQ.
+- Production-style compose with service networks and gateway-only public exposure.
+- gRPC error normalization and HTTP error mapping at the gateway.
 
-### Installation
+## Known Gaps and Caveats
 
-```bash
-pnpm install
-```
+- The README generated by Nx was stale and has been replaced with project-specific instructions.
+- `http-proxy-middleware` is still present in dependencies, but the old `ProxyService` has been removed from the current gateway source.
+- Auth service contains `logout` and `logoutAll` methods, but they are not exposed through protobuf or REST routes yet.
+- RabbitMQ is included in environment and compose files, but no application code currently uses it.
+- E2E tests do not yet cover the real auth/session/profile flows.
+- Some controllers/services still contain temporary `console.log` statements for profile update debugging.
+- The Docker healthcheck uses `GET /api`; this checks that the HTTP process responds, not deep database/gRPC dependency health.
+- User service profile `dob` conversion depends on protobuf timestamp shape from the gateway DTO transform.
 
-### Development
+## Suggested Next Work
 
-```bash
-# Run all services
-pnpm start
-
-# Or run individual services
-npx nx serve api-gateway
-npx nx serve auth-service
-npx nx serve user-service
-```
-
-### Testing
-
-```bash
-# Run all tests
-npx nx run-many --target=test
-
-# Run e2e tests
-npx nx run-many --target=e2e
-```
-
-### Building
-
-```bash
-# Build all services
-npx nx run-many --target=build
-
-# Build individual service
-npx nx build api-gateway
-```
-
-## Current Status and Limitations
-
-### Implemented Features
-
-- ✅ Basic microservices architecture with API Gateway
-- ✅ Proxy middleware for request forwarding with request logging
-- ✅ Shared DTOs with validation
-- ✅ Centralized configuration management (ports, URLs, database)
-- ✅ Nx monorepo setup with proper tooling
-- ✅ Basic E2E testing structure
-- ✅ TypeScript throughout the codebase
-- ✅ **Database Integration**: Prisma ORM with MariaDB adapter
-- ✅ **User Persistence**: User creation and storage in database
-- ✅ **Password Security**: bcrypt password hashing (10 rounds)
-- ✅ **User Validation**: Email uniqueness checking, duplicate prevention
-- ✅ **Error Handling**: ConflictException for duplicate emails, proxy error handling
-
-### Missing/Incomplete Features
-
-- ❌ Login endpoint implementation (registration is complete)
-- ❌ JWT token generation and validation
-- ❌ User service functionality
-- ❌ Advanced error handling and logging improvements
-- ❌ Security middleware (CORS, rate limiting, etc.)
-- ❌ API documentation (Swagger/OpenAPI)
-- ❌ Docker containerization (basic setup exists but not configured)
-- ❌ Environment-specific configurations
-- ❌ Health checks and monitoring
-- ❌ CI/CD pipelines
-- ❌ User profile management endpoints
-- ❌ Password reset functionality
-
-### Known Issues
-
-- Database URL must be set via DATABASE_URL environment variable
-- Login endpoint routing needs refinement
-- Proxy service logging could be enhanced with request IDs
-- No integration between auth and user services yet
-
-## Recent Changes (Last 2 Commits)
-
-### Commit 1: "feat: auth user database setup"
-
-- Added Prisma ORM with MariaDB adapter integration
-- Created PrismaService for database connection management
-- Added database configuration to shared config library
-- Added @prisma/adapter-mariadb and bcrypt dependencies
-
-### Commit 2: "feat: user creation is done"
-
-- Implemented full user registration flow in auth service
-- Added password hashing with bcrypt (10 salt rounds)
-- Added email uniqueness validation
-- Replaced mock registration with actual database persistence
-- Added request logging in proxy service for debugging
-- Improved error handling with ConflictException for duplicate emails
-- Enhanced config system with proper TypeScript generics for type safety
-
-## Future Development Roadmap
-
-1. **Authentication Completion** (HIGH PRIORITY)
-   - ✅ User registration with database (DONE)
-   - Implement login endpoint with credential validation
-   - Implement JWT token generation and validation
-   - Add refresh token mechanism
-   - Create authentication middleware for protected routes
-
-2. **User Service Development**
-   - User profile retrieval endpoints
-   - User profile update functionality
-   - User deletion with cascading permissions
-   - User search and filtering
-
-3. **API Gateway Improvements**
-   - Authentication middleware for protected routes
-   - Enhanced request/response logging with correlation IDs
-   - Rate limiting per IP/user
-   - CORS configuration
-   - Request validation
-
-4. **Infrastructure & DevOps**
-   - Docker Compose setup with MariaDB
-   - Environment configuration files (.env.example)
-   - Database migration scripts
-   - Health check endpoints
-   - Kubernetes manifests
-   - CI/CD with Nx Cloud
-
-5. **Security**
-   - Input sanitization and sanitizer
-   - HTTPS/TLS configuration
-   - API key management
-   - Security headers (helmet)
-   - CORS configuration
-   - Request timeout configurations
-
-6. **Observability & Monitoring**
-   - Structured logging system
-   - Request tracing with correlation IDs
-   - Performance monitoring
-   - Error tracking integration
-
-7. **Documentation**
-   - OpenAPI/Swagger documentation
-   - API usage examples
-   - Architecture diagrams
-   - Database schema documentation
-   - Deployment guides
-
-## Project Structure Summary
-
-```
-micro-nest/
-├── apps/
-│   ├── api-gateway/          # API Gateway service
-│   ├── auth-service/         # Authentication service
-│   ├── user-service/         # User management service
-│   ├── *-e2e/               # E2E test suites
-├── libs/
-│   ├── dto/                 # Shared DTOs
-│   └── shared/
-│       └── config/          # Shared configuration
-├── nx.json                  # Nx configuration
-├── package.json             # Root dependencies and scripts
-└── tsconfig.base.json       # Base TypeScript config
-```
-
-This documentation provides a comprehensive overview of the current state of the MicroNest project, suitable for onboarding new developers or providing context to AI language models for continued development.</content>
-<parameter name="filePath">/var/www/html/micro-nest/doc.md
+1. Add e2e coverage for register, login, refresh token, authenticated profile read, and profile update.
+2. Expose logout/logout-all through `auth.proto` and gateway routes, or remove unused service methods.
+3. Remove unused `http-proxy-middleware` dependency if no longer needed.
+4. Replace temporary `console.log` debugging with structured logging.
+5. Add explicit health endpoints for database, Redis, and gRPC dependencies.
+6. Decide whether RabbitMQ is part of the near-term architecture; remove or document planned use if not.
