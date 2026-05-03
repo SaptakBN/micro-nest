@@ -100,6 +100,7 @@
     "libs/shared/*",
     "libs/*",
     "libs/infra/*",
-    "libs/common/*"
+    "libs/common/*",
+    "/libs/infra/rabbit-mq"
   ]
 }

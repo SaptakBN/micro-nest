@@ -32,6 +32,9 @@
     },
     {
       "path": "./libs/common/contracts"
+    },
+    {
+      "path": ".//libs/infra/rabbit-mq"
     }
   ]
 }
