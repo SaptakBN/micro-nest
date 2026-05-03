@@ -4,7 +4,7 @@ import { ClientProxy, ClientProxyFactory } from '@nestjs/microservices';
 import { rabbitMQConfig } from './rabbit-mq.options';
 import { BaseEvent } from '../interface/event.interface'; // your interface
 import type { TRoutingKeys } from '../constants/routing-keys';
-import { EXCHANGES } from 'src/constants/exchanges';
+import { QUEUES } from 'src/constants/queues';
 
 @Injectable()
 export class InfraRabbitMqService implements OnModuleInit {
@@ -12,7 +12,7 @@ export class InfraRabbitMqService implements OnModuleInit {
 
   onModuleInit() {
     this.client = ClientProxyFactory.create(
-      rabbitMQConfig(EXCHANGES.APP), // connection anchor queue
+      rabbitMQConfig(QUEUES.PUBLISHER), // connection anchor queue
     );
   }
 
