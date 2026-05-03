@@ -9,14 +9,20 @@ import {
 } from '@common/contracts';
 import { RpcException } from '@nestjs/microservices';
 import { status } from '@grpc/grpc-js';
+import { RabbitMqService } from '@infra/rabbit-mq';
 
 @Injectable()
 export class AppService {
-  constructor(private readonly prismaClient: PrismaService) {}
+  constructor(
+    private readonly prismaClient: PrismaService,
+    private readonly rabbitMq: RabbitMqService,
+  ) {}
   async createUser(request: UserCreateRequest): Promise<UserCreateResponse> {
     const existingUser = await this.prismaClient.user.findFirst({
       where: { OR: [{ id: request.user.id }, { email: request.user.email }] },
     });
+
+    console.log(existingUser);
 
     if (existingUser) {
       throw new RpcException({
@@ -94,6 +100,13 @@ export class AppService {
       updatedAt: _u,
       ...userWithoutTimestamps
     } = updatedUser;
+
+    await this.rabbitMq.emit('user.updated', {
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+      },
+    });
 
     return userWithoutTimestamps;
   }

@@ -1,10 +1,10 @@
 import { Module, Global } from '@nestjs/common';
-import { InfraRabbitMqService } from './rabbit-mq.service';
+import { RabbitMqService } from './rabbit-mq.service';
 
 @Global()
 @Module({
   controllers: [],
-  providers: [InfraRabbitMqService],
-  exports: [InfraRabbitMqService],
+  providers: [RabbitMqService],
+  exports: [RabbitMqService],
 })
-export class InfraRabbitMqModule {}
+export class RabbitMqModule {}

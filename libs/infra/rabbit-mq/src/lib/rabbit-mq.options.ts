@@ -1,7 +1,7 @@
 // rabbitmq.options.ts
 import { Transport, RmqOptions } from '@nestjs/microservices';
-import { EXCHANGES } from 'src/constants/exchanges';
-import { TQueue } from 'src/constants/queues';
+import { EXCHANGES } from '../constants/exchanges';
+import { TQueue } from '../constants/queues';
 
 export const rabbitMQConfig = (queue: TQueue): RmqOptions => ({
   transport: Transport.RMQ,
@@ -15,5 +15,6 @@ export const rabbitMQConfig = (queue: TQueue): RmqOptions => ({
       durable: true,
     },
     wildcards: true,
+    noAck: true,
   },
 });

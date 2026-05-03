@@ -11,6 +11,7 @@ import { ClientsModule, GrpcOptions, Transport } from '@nestjs/microservices';
 import { USER_PACKAGE_NAME } from '@common/contracts';
 import { join } from 'path';
 import { UserClient } from './user.client.service';
+import { RabbitMqModule } from '@infra/rabbit-mq';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { UserClient } from './user.client.service';
       },
     ]),
     RedisModule,
+    RabbitMqModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, SessionService, UserClient],

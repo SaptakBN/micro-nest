@@ -6,11 +6,13 @@
     "dev:auth": "dotenv -e .env.dev -e .env.dev.auth -- nx serve auth-service --skip-nx-cache",
     "build:auth": "dotenv -e .env.dev -e .env.dev.auth -- nx build auth-service --skip-nx-cache",
     "dev:user": "dotenv -e .env.dev -e .env.dev.user -- nx serve user-service --skip-nx-cache",
+    "dev:audit": "dotenv -e .env.dev -e .env.dev.audit -- nx serve audit-service --skip-nx-cache",
     "build:user": "dotenv -e .env.dev -e .env.dev.user -- nx build user-service --skip-nx-cache",
     "dev:gateway": "dotenv -e .env.dev -e .env.dev.gateway -- nx serve api-gateway --skip-nx-cache",
     "build:gateway": "dotenv -e .env.dev -e .env.dev.gateway -- nx build api-gateway --skip-nx-cache",
-    "start": "concurrently --names \"AUTH_SERVICE,USER_SERVICE,API__GATEWAY\" --prefix \"[{name}]\" \"npm run dev:auth\" \"npm run dev:user\" \"npm run dev:gateway\"",
-    "build": "concurrently --names \"AUTH_SERVICE,USER_SERVICE,API__GATEWAY\" --prefix \"[{name}]\" \"npm run build:auth\" \"npm run build:user\" \"npm run build:gateway\"",
+    "build:audit": "dotenv -e .env.dev -e .env.dev.audit -- nx build audit-service --skip-nx-cache",
+    "start": "concurrently --names \"AUTH_SERVICE,USER_SERVICE,API__GATEWAY,AUDIT__SERVICE\" --prefix \"[{name}]\" \"npm run dev:auth\" \"npm run dev:user\" \"npm run dev:gateway\" \"npm run dev:audit\"",
+    "build": "concurrently --names \"AUTH_SERVICE,USER_SERVICE,API__GATEWAY,AUDIT__SERVICE\" --prefix \"[{name}]\" \"npm run build:auth\" \"npm run build:user\" \"npm run build:gateway\" \"npm run build:audit\"",
     "migrate:auth:dev": "ENV_FILE=.env.dev.auth prisma migrate dev --schema apps/auth-service/prisma/schema.prisma --config apps/auth-service/prisma.config.ts",
     "migrate:auth:deploy": "ENV_FILE=.env.dev.auth prisma migrate deploy --schema apps/auth-service/prisma/schema.prisma --config apps/auth-service/prisma.config.ts",
     "migrate:user:dev": "ENV_FILE=.env.dev.user prisma migrate dev --schema apps/user-service/prisma/schema.prisma --config apps/user-service/prisma.config.ts",
@@ -39,6 +41,8 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@types/ms": "^2.1.0",
+    "amqp-connection-manager": "^5.0.0",
+    "amqplib": "^1.0.3",
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
@@ -101,6 +105,8 @@
     "libs/*",
     "libs/infra/*",
     "libs/common/*",
-    "/libs/infra/rabbit-mq"
+    "/libs/infra/rabbit-mq",
+    "/apps/audit-service",
+    "/apps/audit-service-e2e"
   ]
 }

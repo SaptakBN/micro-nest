@@ -35,6 +35,12 @@
     },
     {
       "path": ".//libs/infra/rabbit-mq"
+    },
+    {
+      "path": ".//apps/audit-service-e2e"
+    },
+    {
+      "path": ".//apps/audit-service"
     }
   ]
 }

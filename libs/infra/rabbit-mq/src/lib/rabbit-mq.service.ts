@@ -1,19 +1,21 @@
 // rabbit-mq.service.ts
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ClientProxy, ClientProxyFactory } from '@nestjs/microservices';
 import { rabbitMQConfig } from './rabbit-mq.options';
 import { BaseEvent } from '../interface/event.interface'; // your interface
 import type { TRoutingKeys } from '../constants/routing-keys';
-import { QUEUES } from 'src/constants/queues';
+import { QUEUES } from '../constants/queues';
 
 @Injectable()
-export class InfraRabbitMqService implements OnModuleInit {
+export class RabbitMqService {
   private client!: ClientProxy;
 
-  onModuleInit() {
+  constructor() {
     this.client = ClientProxyFactory.create(
       rabbitMQConfig(QUEUES.PUBLISHER), // connection anchor queue
     );
+
+    console.log(this.client);
   }
 
   async emit<T>(routingKey: TRoutingKeys, payload: T) {
@@ -22,6 +24,8 @@ export class InfraRabbitMqService implements OnModuleInit {
       timestamp: Date.now(),
       payload,
     };
+
+    console.log('EMIT EVENT:', event);
 
     this.client.emit(routingKey, event);
   }

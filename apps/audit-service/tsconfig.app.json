@@ -10,16 +10,23 @@
     "target": "es2021"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
+  "exclude": [
+    "out-tsc",
+    "dist",
+    "jest.config.ts",
+    "jest.config.cts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "eslint.config.js",
+    "eslint.config.cjs",
+    "eslint.config.mjs"
+  ],
   "references": [
     {
       "path": "../../libs/shared/config/tsconfig.lib.json"
     },
     {
       "path": "../../libs/infra/rabbit-mq/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/common/contracts/tsconfig.lib.json"
     }
   ]
 }
