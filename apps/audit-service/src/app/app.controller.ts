@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
-import { EventPattern, Payload } from '@nestjs/microservices';
+import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
+import type { BaseEvent, TUserEventPayload } from '@infra/rabbit-mq';
 
 @Controller()
 export class AppController {
@@ -11,26 +12,45 @@ export class AppController {
     return this.appService.getData();
   }
 
-  @EventPattern('user.*')
-  async handleUserEvents(
-    @Payload() event: unknown,
-    // @Ctx() context: RmqContext,
+  @EventPattern('user.registered')
+  handleUserRegisterEvents(
+    @Payload() event: BaseEvent<TUserEventPayload>,
+    @Ctx() context: RmqContext,
   ) {
-    // const channel = context.getChannelRef();
-    // const message = context.getMessage();
+    const message = context.getMessage();
 
     try {
       console.log('AUDIT EVENT:', event);
-
-      // TODO: persist to DB
-      // await this.auditService.createLog(event);
-
-      // channel.ack(message);
+      const channel = context.getChannelRef();
+      console.log('CHANNEL ID:', channel.connection.stream._handle?.fd);
+      console.log(channel.constructor.name);
+      // 👇 IMPORTANT: bind ack immediately, don't reuse later
+      channel.ack(message);
     } catch (err) {
-      console.error('AUDIT ERROR:', err);
+      console.log(err);
+      const channel = context.getChannelRef();
+      channel.nack(message, false, false);
+    }
+  }
 
-      // reject without requeue (you’ll wire DLQ later)
-      // channel.nack(message, false, false);
+  @EventPattern('user.login')
+  handleUserLoginEvents(
+    @Payload() event: BaseEvent<TUserEventPayload>,
+    @Ctx() context: RmqContext,
+  ) {
+    const message = context.getMessage();
+
+    try {
+      console.log('AUDIT EVENT:', event);
+      const channel = context.getChannelRef();
+      console.log('CHANNEL ID:', channel.connection.stream._handle?.fd);
+      console.log(channel.constructor.name);
+      // 👇 IMPORTANT: bind ack immediately, don't reuse later
+      channel.ack(message);
+    } catch (err) {
+      console.log(err);
+      const channel = context.getChannelRef();
+      channel.nack(message, false, false);
     }
   }
 }

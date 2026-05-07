@@ -6,7 +6,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
-import { rabbitMQConfig } from '@infra/rabbit-mq';
+import { rabbitMQConsumerConfig } from '@infra/rabbit-mq';
 import { QUEUES } from '@infra/rabbit-mq';
 import { getConfig } from '@micro/config';
 
@@ -17,7 +17,7 @@ async function bootstrap() {
   app.setGlobalPrefix(globalPrefix);
   const port = config.PORT;
 
-  app.connectMicroservice(rabbitMQConfig(QUEUES.AUDIT));
+  app.connectMicroservice(rabbitMQConsumerConfig(QUEUES.AUDIT));
 
   await app.startAllMicroservices();
 

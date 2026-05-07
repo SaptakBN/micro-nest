@@ -8,7 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { LoginRequest, RegisterRequest } from '@common/contracts';
 import { getConfig } from '@micro/config';
 import { UserClient } from './user.client.service';
-import { RabbitMqService } from '@infra/rabbit-mq';
+import { RabbitMqService, TUserEventPayload } from '@infra/rabbit-mq';
 
 @Injectable()
 export class AppService {
@@ -49,15 +49,12 @@ export class AppService {
       },
     });
 
-    await this.rabbitMq.emit<{ user: { id: string; email: string } }>(
-      'user.registered',
-      {
-        user: {
-          id: user.id,
-          email: user.email,
-        },
+    this.rabbitMq.emit<TUserEventPayload>('user.registered', {
+      user: {
+        id: user.id,
+        email: user.email,
       },
-    );
+    });
 
     return {
       user: {
@@ -117,15 +114,12 @@ export class AppService {
       },
     );
 
-    await this.rabbitMq.emit<{ user: { id: string; email: string } }>(
-      'user.login',
-      {
-        user: {
-          id: user.id,
-          email: user.email,
-        },
+    this.rabbitMq.emit<TUserEventPayload>('user.login', {
+      user: {
+        id: user.id,
+        email: user.email,
       },
-    );
+    });
 
     return {
       access_token,

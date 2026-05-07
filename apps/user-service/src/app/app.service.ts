@@ -9,7 +9,7 @@ import {
 } from '@common/contracts';
 import { RpcException } from '@nestjs/microservices';
 import { status } from '@grpc/grpc-js';
-import { RabbitMqService } from '@infra/rabbit-mq';
+import { RabbitMqService, TUserEventPayload } from '@infra/rabbit-mq';
 
 @Injectable()
 export class AppService {
@@ -101,7 +101,7 @@ export class AppService {
       ...userWithoutTimestamps
     } = updatedUser;
 
-    await this.rabbitMq.emit('user.updated', {
+    this.rabbitMq.emit<TUserEventPayload>('user.updated', {
       user: {
         id: updatedUser.id,
         email: updatedUser.email,
