@@ -22,8 +22,6 @@ export class AppService {
       where: { OR: [{ id: request.user.id }, { email: request.user.email }] },
     });
 
-    console.log(existingUser);
-
     if (existingUser) {
       throw new RpcException({
         code: status.ALREADY_EXISTS,
