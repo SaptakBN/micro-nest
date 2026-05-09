@@ -11,7 +11,7 @@ export class PrismaService
   constructor() {
     const config = getConfig('db');
     const adapter = new PrismaPg(
-      { connectionString: config.url, ssl: false },
+      { connectionString: config.url },
       {
         onConnectionError(err) {
           console.error('Database connection error:', err);

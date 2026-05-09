@@ -42,6 +42,24 @@ services:
       timeout: 5s
       retries: 5
 
+  audit-db:
+    <<: *defaults
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${AUDIT_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${AUDIT_DB_NAME}
+      MYSQL_USER: ${AUDIT_DB_USER}
+      MYSQL_PASSWORD: ${AUDIT_DB_PASSWORD}
+    volumes:
+      - audit_db_data:/var/lib/mysql
+    networks:
+      - audit-internal
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ================= INFRA =================
 
   redis:
@@ -98,6 +116,21 @@ services:
     networks:
       - user-internal
 
+  migration-audit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migration
+      args:
+        SERVICE_NAME: audit-service
+    environment:
+      DATABASE_URL: mysql://${AUDIT_DB_USER}:${AUDIT_DB_PASSWORD}@audit-db:3306/${AUDIT_DB_NAME}
+    depends_on:
+      audit-db:
+        condition: service_healthy
+    networks:
+      - audit-internal
+
   # ================= SERVICES =================
 
   auth-service:
@@ -114,6 +147,7 @@ services:
       REDIS_URL: redis://${REDIS_WRITE_USER}:${REDIS_WRITE_PASSWORD}@redis:6379
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
       PORT: ${AUTH_SERVICE_PORT}
+      USER_SERVICE_URL: user-service:${USER_SERVICE_PORT}
     depends_on:
       redis:
         condition: service_started
@@ -136,7 +170,7 @@ services:
         SERVICE_NAME: user-service
         SERVICE_PORT: ${USER_SERVICE_PORT}
     environment:
-      DATABASE_URL: postgresql://${USER_DB_USER}:${USER_DB_PASSWORD}@user-db:5432/${USER_DB_NAME}?allowPublicKeyRetrieval=true&ssl=false
+      DATABASE_URL: postgresql://${USER_DB_USER}:${USER_DB_PASSWORD}@user-db:5432/${USER_DB_NAME}?sslmode=disable
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
       PORT: ${USER_SERVICE_PORT}
     depends_on:
@@ -148,6 +182,32 @@ services:
         condition: service_healthy
     networks:
       - user-internal
+      - shared-infra
+      - app-layer
+
+  audit-service:
+    <<: *defaults
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        SERVICE_NAME: audit-service
+        SERVICE_PORT: ${AUDIT_SERVICE_PORT}
+    environment:
+      DATABASE_URL: mysql://${AUDIT_DB_USER}:${AUDIT_DB_PASSWORD}@audit-db:3306/${AUDIT_DB_NAME}?allowPublicKeyRetrieval=true&ssl=false
+      REDIS_URL: redis://${REDIS_WRITE_USER}:${REDIS_WRITE_PASSWORD}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      PORT: ${AUDIT_SERVICE_PORT}
+    depends_on:
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      audit-db:
+        condition: service_healthy
+    networks:
+      - audit-internal
       - shared-infra
       - app-layer
 
@@ -183,6 +243,8 @@ networks:
     internal: true
   user-internal:
     internal: true
+  audit-internal:
+    internal: true
   shared-infra:
   app-layer:
 
@@ -191,4 +253,5 @@ networks:
 volumes:
   auth_db_data:
   user_db_data:
+  audit_db_data:
   redis_data:

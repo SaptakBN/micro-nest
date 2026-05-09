@@ -17,11 +17,13 @@ COPY package.json package-lock.json ./
 COPY apps/api-gateway/package.json   apps/api-gateway/
 COPY apps/auth-service/package.json  apps/auth-service/
 COPY apps/user-service/package.json  apps/user-service/
+COPY apps/audit-service/package.json apps/audit-service/
 
 COPY libs/dto/package.json           libs/dto/
 COPY libs/shared/config/package.json libs/shared/config/
 COPY libs/common/contracts/package.json libs/common/contracts/
 COPY libs/infra/redis/package.json      libs/infra/redis/
+COPY libs/infra/rabbit-mq/package.json  libs/infra/rabbit-mq/
 
 RUN npm ci
 
